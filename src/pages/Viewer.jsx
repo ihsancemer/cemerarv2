@@ -136,6 +136,7 @@ export default function Viewer() {
           ar
           ar-modes="webxr scene-viewer quick-look"
           ar-scale="fixed"
+          ar-placement="floor"
           camera-controls
           touch-action="pan-y"
           shadow-intensity="1.5"

@@ -26,18 +26,16 @@
     background: var(--cemer-turk); color: white; border: none;
     padding: 16px 32px; border-radius: 50px; font-weight: 600; cursor: pointer;
     box-shadow: 0 10px 25px rgba(25, 176, 199, 0.4); 
-    z-index: 10; display: none; font-size: 14px;
+    z-index: 1000; font-size: 14px;
     align-items: center; gap: 10px;
     transition: transform 0.2s, background 0.2s;
     text-decoration: none;
+    display: flex;
 }
 
-model-viewer > .ar-button {
-  display: flex;
-}
-
-.ar-button[slot="ar-button"]:not([data-visibility-attribute="visible"]) {
-    display: none;
+/* Sadece AR destekleyen cihazlarda veya model-viewer tarafindan yonetilirken gizleme yapmak icin */
+model-viewer[ar-status="not-presenting"] .ar-button {
+    display: flex;
 }
 
 .variant-container {
