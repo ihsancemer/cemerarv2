@@ -420,6 +420,15 @@ export default function Upload() {
         if (!e.currentModel) throw new Error("Sahne boş!");
         
         e.currentModel.updateMatrixWorld(true);
+        
+        // Otomatik merkezleme ve zemine oturtma (AR garantisi)
+        const box = new THREE.Box3().setFromObject(e.currentModel);
+        const center = box.getCenter(new THREE.Vector3());
+        e.currentModel.position.x -= center.x;
+        e.currentModel.position.z -= center.z;
+        e.currentModel.position.y -= box.min.y;
+        e.currentModel.updateMatrixWorld(true);
+
         e.currentModel.traverse(child => { if(child.isMesh) child.updateMatrixWorld(true); });
 
         e.grid.visible = false; 
