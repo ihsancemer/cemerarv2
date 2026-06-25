@@ -165,6 +165,21 @@ export default function Viewer() {
 
       {/* model-viewer — sadece konteyner, özellikler useEffect ile set ediliyor */}
       <model-viewer ref={mvRef} alt="Cemer 3D Ürün Modeli" style={{ width: '100%', height: '100%' }} />
+
+      {/* Watermark */}
+      <div style={{
+        position: 'absolute',
+        bottom: '8px',
+        right: '12px',
+        fontSize: '10px',
+        color: 'rgba(0,0,0,0.4)',
+        fontFamily: 'Outfit, sans-serif',
+        fontWeight: '600',
+        pointerEvents: 'none',
+        zIndex: 5
+      }}>
+        Cemer IT tarafından geliştirildi
+      </div>
     </div>
   );
 }
