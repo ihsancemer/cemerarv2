@@ -136,12 +136,10 @@ export default function Viewer() {
           ar
           ar-modes="webxr scene-viewer quick-look"
           ar-scale="fixed"
-          ar-placement="floor"
-          xr-environment
           camera-controls
           touch-action="pan-y"
-          shadow-intensity="2"
-          shadow-softness="1"
+          shadow-intensity="1.5"
+          shadow-softness="0.8"
           environment-image="neutral"
           exposure="1.2"
           auto-rotate
@@ -152,8 +150,8 @@ export default function Viewer() {
           alt="Cemer 3D Ürün Modeli"
         >
           <button slot="ar-button" className="ar-button">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M7 11V7H11V5H7C5.9 5 5 5.9 5 7V11H7ZM17 7V11H19V7C19 5.9 18.1 5 17 5H13V7H17ZM17 17H13V19H17C18.1 19 19 18.1 19 17V13H17V17ZM7 17V13H5V17C5 18.1 5.9 19 7 19H11V17H7ZM12 8C9.79 8 8 9.79 8 12C8 14.21 9.79 16 12 16C14.21 16 16 14.21 16 12C16 9.79 14.21 8 12 8Z"/></svg>
-            AR'DA GÖR
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M7 11V7H11V5H7C5.9 5 5 5.9 5 7V11H7ZM17 7V11H19V7C19 5.9 18.1 5 17 5H13V7H17ZM17 17H13V19H17C18.1 19 19 18.1 19 17V13H17V17ZM7 17V13H5V17C5 18.1 5.9 19 7 19H11V17H7ZM12 8C9.79 8 8 9.79 8 12C8 14.21 9.79 16 12 16C14.21 16 16 14.21 16 12C16 9.79 14.21 8 12 8Z"/></svg>
+            GERÇEK DÜNYADA GÖR
           </button>
         </model-viewer>
       )}
