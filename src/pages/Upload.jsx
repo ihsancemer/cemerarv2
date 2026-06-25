@@ -7,10 +7,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import './Upload.css';
 
 export default function Upload() {
@@ -23,7 +20,7 @@ export default function Upload() {
   const engine = useRef({
     scene: null, camera: null, renderer: null, orbit: null, 
     currentModel: null, grid: null, selectionBox: null, sunLight: null,
-    selectedMesh: null, composer: null, bloomPass: null, reqId: null
+    selectedMesh: null, transformControl: null, reqId: null
   });
 
   // UI State
@@ -49,8 +46,7 @@ export default function Upload() {
 
   const [exposure, setExposure] = useState(1.5);
   const [sunAngle, setSunAngle] = useState(45);
-  const [bloomStrength, setBloomStrength] = useState(0.5);
-  const [bloomRadius, setBloomRadius] = useState(0.4);
+
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -107,11 +103,11 @@ export default function Upload() {
     e.selectionBox.visible = false;
     e.scene.add(e.selectionBox);
     
-    e.composer = new EffectComposer(e.renderer);
-    e.composer.addPass(new RenderPass(e.scene, e.camera));
-    e.bloomPass = new UnrealBloomPass(new THREE.Vector2(viewportW, viewportH), bloomStrength, bloomRadius, 0.85);
-    e.composer.addPass(e.bloomPass);
-    e.composer.addPass(new OutputPass());
+    e.transformControl = new TransformControls(e.camera, e.renderer.domElement);
+    e.transformControl.addEventListener('dragging-changed', (event) => {
+        e.orbit.enabled = !event.value;
+    });
+    e.scene.add(e.transformControl);
 
     // Raycaster logic
     const raycaster = new THREE.Raycaster();
@@ -119,6 +115,7 @@ export default function Upload() {
 
     const onPointerDown = (event) => {
       if (!e.currentModel) return;
+      if (e.transformControl && e.transformControl.dragging) return;
       const rect = e.renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -136,7 +133,7 @@ export default function Upload() {
     const animate = () => {
       e.reqId = requestAnimationFrame(animate);
       e.orbit.update();
-      e.composer.render();
+      e.renderer.render(e.scene, e.camera);
     };
     animate();
 
@@ -147,7 +144,7 @@ export default function Upload() {
         e.camera.aspect = w / h;
         e.camera.updateProjectionMatrix();
         e.renderer.setSize(w, h);
-        e.composer.setSize(w, h);
+
     };
     window.addEventListener('resize', handleResize);
     // Return cleanup inner is not directly possible here, but handled in useEffect return
@@ -190,6 +187,7 @@ export default function Upload() {
             const box = new THREE.Box3().setFromObject(e.currentModel);
             const center = box.getCenter(new THREE.Vector3());
             e.currentModel.position.set(-center.x, -box.min.y, -center.z);
+            if (e.transformControl) e.transformControl.attach(e.currentModel);
             
             fetch(supabase.storage.from('models').getPublicUrl(`${editName}-vars.json`).data.publicUrl + `?t=${Date.now()}`)
                 .then(res => res.ok ? res.json() : [])
@@ -248,7 +246,10 @@ export default function Upload() {
     
     loader.load(URL.createObjectURL(file), (gltf) => {
         const eng = engine.current;
-        if(eng.currentModel) eng.scene.remove(eng.currentModel);
+        if(eng.currentModel) {
+            eng.scene.remove(eng.currentModel);
+            if (eng.transformControl) eng.transformControl.detach();
+        }
         eng.currentModel = gltf.scene;
         eng.scene.add(eng.currentModel);
         
@@ -256,6 +257,7 @@ export default function Upload() {
         const box = new THREE.Box3().setFromObject(eng.currentModel);
         const center = box.getCenter(new THREE.Vector3());
         eng.currentModel.position.set(-center.x, -box.min.y, -center.z);
+        if (eng.transformControl) eng.transformControl.attach(eng.currentModel);
         
         hideLoading();
         e.target.value = ""; 
@@ -353,23 +355,18 @@ export default function Upload() {
       setSunAngle(v);
       updateSunPosition(v, engine.current.sunLight);
   };
-  const handleBloomStrength = (e) => {
-      const v = parseFloat(e.target.value);
-      setBloomStrength(v);
-      if(engine.current.bloomPass) engine.current.bloomPass.strength = v;
-  };
-  const handleBloomRadius = (e) => {
-      const v = parseFloat(e.target.value);
-      setBloomRadius(v);
-      if(engine.current.bloomPass) engine.current.bloomPass.radius = v;
-  };
+
 
   // Transformations
   const rotateModel = () => { if(engine.current.currentModel) engine.current.currentModel.rotation.y += Math.PI / 2; };
-  const snapToFloor = () => { 
+  const centerAndSnapToFloor = () => { 
       const model = engine.current.currentModel;
       if(model) { 
+          model.updateMatrixWorld(true);
           const box = new THREE.Box3().setFromObject(model); 
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.x -= center.x;
+          model.position.z -= center.z;
           model.position.y -= box.min.y; 
       } 
   };
@@ -427,9 +424,11 @@ export default function Upload() {
 
         e.grid.visible = false; 
         e.selectionBox.visible = false;
-        e.composer.render();
+        if (e.transformControl) e.transformControl.visible = false;
+        e.renderer.render(e.scene, e.camera);
         const thumbBlob = await fetch(e.renderer.domElement.toDataURL("image/webp", 0.8)).then(r => r.blob());
         e.grid.visible = true;
+        if (e.transformControl) e.transformControl.visible = true;
 
         const exporter = new GLTFExporter();
         const exportOptions = {
@@ -525,7 +524,7 @@ export default function Upload() {
                         <button className="editor-btn" onClick={scaleMM}>MM ➔ M</button>
                     </div>
                     <button className="editor-btn" onClick={rotateModel}>🔄 90° Çevir</button>
-                    <button className="editor-btn" style={{ marginTop: '6px' }} onClick={snapToFloor}>⬇️ Zemine Hizala</button>
+                    <button className="editor-btn" style={{ marginTop: '6px' }} onClick={centerAndSnapToFloor}>⬇️ Merkeze ve Zemine Hizala</button>
                 </div>
                 
                 {hasSelection && (
@@ -564,11 +563,7 @@ export default function Upload() {
                     <span className="editor-label">Güneş Açısı</span>
                     <input type="range" min="0" max="360" step="1" value={sunAngle} onChange={handleSunAngle} />
                     
-                    <span className="editor-label" style={{ marginTop: '10px' }}>HDR Glow (Perceived HDR Bloom)</span>
-                    <span className="editor-label">Parlaklık Gücü</span>
-                    <input type="range" min="0" max="2" step="0.1" value={bloomStrength} onChange={handleBloomStrength} />
-                    <span className="editor-label">Yansıma Yarıçapı</span>
-                    <input type="range" min="0" max="1" step="0.05" value={bloomRadius} onChange={handleBloomRadius} />
+
                 </div>
             </div>
             
