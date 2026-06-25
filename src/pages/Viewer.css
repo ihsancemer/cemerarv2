@@ -1,0 +1,74 @@
+/* src/pages/Viewer.css */
+.viewer-wrapper {
+  --cemer-turk: #19b0c7; 
+  --bg: #f7f5f2; 
+  --white: #ffffff;
+  margin: 0; 
+  background: var(--bg); 
+  font-family: 'Outfit', sans-serif; 
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 50; /* Ensure it covers anything else */
+}
+
+.viewer-wrapper model-viewer { 
+    width: 100%; height: 100%; 
+    background-color: var(--bg);
+    --progress-bar-color: var(--cemer-turk);
+}
+
+.ar-button {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: var(--cemer-turk); color: white; border: none;
+    padding: 16px 32px; border-radius: 50px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 10px 25px rgba(25, 176, 199, 0.4); 
+    z-index: 10; display: none; font-size: 14px;
+    align-items: center; gap: 10px;
+    transition: transform 0.2s, background 0.2s;
+    text-decoration: none;
+}
+
+model-viewer > .ar-button {
+  display: flex;
+}
+
+.ar-button[slot="ar-button"]:not([data-visibility-attribute="visible"]) {
+    display: none;
+}
+
+.variant-container {
+    position: absolute; top: 25px; left: 0; width: 100%;
+    display: flex; justify-content: center; gap: 12px; z-index: 20; 
+    padding: 0 20px; box-sizing: border-box; flex-wrap: wrap;
+}
+.variant-btn {
+    background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(0,0,0,0.05);
+    padding: 10px 20px; border-radius: 25px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: 0.3s; backdrop-filter: blur(10px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.variant-btn.active { background: var(--cemer-turk); color: white; border-color: var(--cemer-turk); }
+
+.status-ov { 
+    position: fixed; inset: 0; background: var(--bg); 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    z-index: 100; transition: opacity 0.5s ease;
+}
+.status-spinner { 
+    border: 4px solid rgba(25,176,199,0.1); border-left-color: var(--cemer-turk); 
+    border-radius: 50%; width: 45px; height: 45px; 
+    animation: viewer-spin 1s linear infinite; margin-bottom: 20px; 
+}
+@keyframes viewer-spin { 100% { transform: rotate(360deg); } }
+
+.load-bar { width: 150px; height: 4px; background: #ddd; border-radius: 2px; overflow: hidden; margin-top: 10px; }
+.load-fill { width: 0%; height: 100%; background: var(--cemer-turk); transition: width 0.3s; }
+
+.error-card { 
+    display: flex; flex-direction: column; background: white; padding: 30px; border-radius: 15px; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; max-width: 80%; 
+}

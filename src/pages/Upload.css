@@ -1,0 +1,49 @@
+/* Upload.css */
+.editor-wrapper {
+  --bg0: #0d0d0f; 
+  --bg1: #111113; 
+  --border: #2a2a2e; 
+  --accent: #19b0c7; 
+  --text: #f0f0f2;
+  font-family: 'Outfit', sans-serif; 
+  background: var(--bg0); 
+  color: var(--text);
+  display: flex; 
+  flex-direction: column; 
+  height: 100vh; 
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50; /* over app layout if any */
+}
+
+.editor-topbar { height: 52px; background: var(--bg1); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 14px; gap: 10px; z-index: 10; }
+.editor-workspace { flex: 1; display: flex; height: calc(100vh - 52px); }
+.editor-sidebar { width: 300px; background: var(--bg1); border-right: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.editor-sidebar::-webkit-scrollbar { width: 6px; }
+.editor-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.editor-viewport { flex: 1; position: relative; background: #000; outline: none; overflow: hidden; }
+.editor-viewport canvas { display: block; width: 100%; height: 100%; outline: none; }
+
+.editor-btn { padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: #1c1c1f; color: white; cursor: pointer; font-size: 11px; transition: 0.2s; width: 100%; text-align: center; font-weight: 600; font-family: inherit; }
+.editor-btn:hover { background: #242428; border-color: var(--accent); transform: translateY(-1px); }
+.editor-btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 800; }
+.editor-label { font-size: 10px; color: #8b8b96; margin-bottom: 6px; display: block; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* Modal ve Overlay Stilleri */
+.editor-loading-ov, .editor-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; flex-direction: column; backdrop-filter: blur(5px); }
+.editor-modal-backdrop { z-index: 2000; } 
+.editor-loading-ov.open, .editor-modal-backdrop.open { display: flex; }
+
+.editor-panel { background: #151518; border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 5px; }
+.editor-panel input[type="color"] { width: 100%; height: 32px; border: none; border-radius: 4px; cursor: pointer; background: none; margin-bottom: 8px; }
+.editor-panel input[type="range"] { width: 100%; margin-bottom: 10px; accent-color: var(--accent); cursor: pointer; }
+.editor-panel input[type="text"], .editor-modal-backdrop input[type="text"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: #0d0d0f; color: white; margin-bottom: 8px; box-sizing: border-box; font-size: 12px; font-family: inherit; }
+.editor-var-item { background: #1a1a1e; padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--accent); font-size: 11px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.editor-btn-del-var { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; }
+
+.editor-spinner { border: 3px solid rgba(25,176,199,0.1); border-left-color: var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
