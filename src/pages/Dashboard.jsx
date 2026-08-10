@@ -88,6 +88,33 @@ export default function Dashboard() {
     }
   };
 
+  const handleDownloadGLB = async (name) => {
+    try {
+      showToast("İndiriliyor...");
+      const { data } = supabase.storage.from('models').getPublicUrl(`${name}-3d.glb`);
+      if (data && data.publicUrl) {
+        const response = await fetch(data.publicUrl);
+        if (!response.ok) throw new Error("Dosya bulunamadı");
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = `${name}.glb`;
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
+      } else {
+        showToast("İndirme linki alınamadı.");
+      }
+    } catch (err) {
+      alert("İndirme hatası: " + err.message);
+    }
+  };
+
   // Filter & Sort Logic
   let filteredModels = [...allModels];
 
@@ -241,7 +268,8 @@ export default function Dashboard() {
                       <div className="model-actions">
                         <Link to={`/upload?edit=${encodeURIComponent(m.name)}`} className="btn-sm" style={{ background: 'var(--bg2)' }}>✏️ Düzenle</Link>
                         <Link to={`/viewer?model=${m.name}`} target="_blank" className="btn-sm" rel="noopener noreferrer">👁️ Gözat</Link>
-                        <button className="btn-sm danger" onClick={() => handleDeleteModel(m.id, m.name)}>🗑️</button>
+                        <button className="btn-sm" style={{ background: 'var(--bg2)' }} onClick={() => handleDownloadGLB(m.name)} title="GLB İndir">⬇️ İndir</button>
+                        <button className="btn-sm danger" onClick={() => handleDeleteModel(m.id, m.name)} title="Sil">🗑️</button>
                       </div>
                       <button
                         className="btn-sm primary"
