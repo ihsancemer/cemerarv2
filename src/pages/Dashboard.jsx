@@ -13,7 +13,7 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('date-desc');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [linkModalData, setLinkModalData] = useState(null); // { name: '', url: '' }
   const [toastMsg, setToastMsg] = useState('');
 
@@ -22,12 +22,12 @@ export default function Dashboard() {
   useEffect(() => {
     const init = async () => {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) { 
-          navigate('/');
-          return; 
+
+      if (sessionError || !session) {
+        navigate('/');
+        return;
       }
-      
+
       setCurrentUser(session.user);
       loadModels(session.user.id);
     };
@@ -44,14 +44,14 @@ export default function Dashboard() {
       .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("Supabase Veritabanı Hatası:", error.message);
-        setError(`Veri yüklenemedi: ${error.message}`);
+      console.error("Supabase Veritabanı Hatası:", error.message);
+      setError(`Veri yüklenemedi: ${error.message}`);
     } else {
-        const models = data || [];
-        setAllModels(models);
-        
-        const uniqueSerials = [...new Set(models.map(m => m.serial_code).filter(s => s && s.trim() !== ""))].sort();
-        setSerials(uniqueSerials);
+      const models = data || [];
+      setAllModels(models);
+
+      const uniqueSerials = [...new Set(models.map(m => m.serial_code).filter(s => s && s.trim() !== ""))].sort();
+      setSerials(uniqueSerials);
     }
     setIsLoading(false);
   };
@@ -61,9 +61,9 @@ export default function Dashboard() {
     navigate('/');
   };
 
-  const showToast = (msg) => { 
+  const showToast = (msg) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000); 
+    setTimeout(() => setToastMsg(''), 3000);
   };
 
   const handleCopyLink = () => {
@@ -73,44 +73,44 @@ export default function Dashboard() {
   };
 
   const handleDeleteModel = async (id, name) => {
-    if(!window.confirm(`"${name}" ürününü kütüphaneden silmek istediğinize emin misiniz?`)) return;
+    if (!window.confirm(`"${name}" ürününü kütüphaneden silmek istediğinize emin misiniz?`)) return;
     try {
-        // Storage dosyalarını temizle
-        await supabase.storage.from('models').remove([`${name}-3d.glb`, `${name}-thumb.webp`, `${name}-vars.json`]);
-        // Veritabanı kaydını sil
-        const { error } = await supabase.from('models').delete().eq('id', id);
-        if(error) throw error;
-        
-        showToast("Ürün silindi.");
-        loadModels(currentUser.id);
-    } catch (err) { 
-        alert("Silme hatası: " + err.message); 
+      // Storage dosyalarını temizle
+      await supabase.storage.from('models').remove([`${name}-3d.glb`, `${name}-thumb.webp`, `${name}-vars.json`]);
+      // Veritabanı kaydını sil
+      const { error } = await supabase.from('models').delete().eq('id', id);
+      if (error) throw error;
+
+      showToast("Ürün silindi.");
+      loadModels(currentUser.id);
+    } catch (err) {
+      alert("Silme hatası: " + err.message);
     }
   };
 
   // Filter & Sort Logic
   let filteredModels = [...allModels];
-  
+
   if (currentSerialFilter !== 'all') {
-      filteredModels = filteredModels.filter(m => m.serial_code === currentSerialFilter);
+    filteredModels = filteredModels.filter(m => m.serial_code === currentSerialFilter);
   }
 
   if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filteredModels = filteredModels.filter(m => 
-          (m.name && m.name.toLowerCase().includes(term)) || 
-          (m.serial_code && m.serial_code.toLowerCase().includes(term))
-      );
+    const term = searchTerm.toLowerCase();
+    filteredModels = filteredModels.filter(m =>
+      (m.name && m.name.toLowerCase().includes(term)) ||
+      (m.serial_code && m.serial_code.toLowerCase().includes(term))
+    );
   }
 
   filteredModels.sort((a, b) => {
-      switch (sortBy) {
-          case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
-          case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
-          case 'name-asc': return (a.name || "").localeCompare(b.name || "");
-          case 'name-desc': return (b.name || "").localeCompare(a.name || "");
-          default: return 0;
-      }
+    switch (sortBy) {
+      case 'date-desc': return new Date(b.created_at) - new Date(a.created_at);
+      case 'date-asc': return new Date(a.created_at) - new Date(b.created_at);
+      case 'name-asc': return (a.name || "").localeCompare(b.name || "");
+      case 'name-desc': return (b.name || "").localeCompare(a.name || "");
+      default: return 0;
+    }
   });
 
   return (
@@ -119,17 +119,17 @@ export default function Dashboard() {
         <div className="sidebar-logo">CEMER <span>AR STUDIO</span></div>
         <nav className="sidebar-nav">
           <div className="nav-section-title">Kütüphane</div>
-          <button 
+          <button
             className={`nav-item ${currentSerialFilter === 'all' ? 'active' : ''}`}
             onClick={() => setCurrentSerialFilter('all')}
           >
             📦 Tüm Modeller
           </button>
-          
+
           <div className="nav-section-title">Ürün Serileri</div>
           <div id="serial-tabs">
             {serials.map(s => (
-              <button 
+              <button
                 key={s}
                 className={`nav-item ${currentSerialFilter === s ? 'active' : ''}`}
                 onClick={() => setCurrentSerialFilter(s)}
@@ -142,7 +142,7 @@ export default function Dashboard() {
           <div className="nav-section-title">Araçlar</div>
           <Link className="nav-item" to="/upload">🛠️ Pro Editor</Link>
         </nav>
-        
+
         {currentUser && (
           <div className="sidebar-user" id="user-box">
             <div className="sidebar-user-name" title={currentUser.email}>{currentUser.email}</div>
@@ -154,12 +154,12 @@ export default function Dashboard() {
 
       <main className="main">
         <div className="topbar">
-          <span style={{ fontWeight: 700, fontSize: '18px' }}>Yönetim Paneli</span>
+          <span style={{ fontWeight: 700, fontSize: '18px' }}>Panele Hoşgeldiniz</span>
           <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => loadModels(currentUser?.id)} className="btn-sm" style={{ width: 'auto', padding: '0 15px' }}>
-                🔄 Yenile
-              </button>
-              <Link to="/upload" className="btn-upload">+ Yeni Model Tasarla</Link>
+            <button onClick={() => loadModels(currentUser?.id)} className="btn-sm" style={{ width: 'auto', padding: '0 15px' }}>
+              🔄 Yenile
+            </button>
+            <Link to="/upload" className="btn-upload">+ Yeni Model Tasarla</Link>
           </div>
         </div>
 
@@ -180,29 +180,29 @@ export default function Dashboard() {
           </div>
 
           <div className="library-header">
-              <div>
-                  <div id="current-tab-title" style={{ fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>
-                    {currentSerialFilter === 'all' ? 'Tüm Modeller' : `${currentSerialFilter} Serisi`}
-                  </div>
-                  <div style={{ color: 'var(--text3)', fontSize: '13px' }}>({filteredModels.length} Ürün Listeleniyor)</div>
+            <div>
+              <div id="current-tab-title" style={{ fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>
+                {currentSerialFilter === 'all' ? 'Tüm Modeller' : `${currentSerialFilter} Serisi`}
               </div>
-              <div className="search-box">
-                  <i>🔍</i>
-                  <input 
-                    type="text" 
-                    placeholder="İsim veya seri kodu ile ara..." 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-              </div>
-              <div className="filter-group">
-                  <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                      <option value="date-desc">En Yeni Eklenen</option>
-                      <option value="date-asc">En Eski Eklenen</option>
-                      <option value="name-asc">İsim (A-Z)</option>
-                      <option value="name-desc">İsim (Z-A)</option>
-                  </select>
-              </div>
+              <div style={{ color: 'var(--text3)', fontSize: '13px' }}>({filteredModels.length} Ürün Listeleniyor)</div>
+            </div>
+            <div className="search-box">
+              <i>🔍</i>
+              <input
+                type="text"
+                placeholder="İsim veya seri kodu ile ara..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="filter-group">
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="date-desc">En Yeni Eklenen</option>
+                <option value="date-asc">En Eski Eklenen</option>
+                <option value="name-asc">İsim (A-Z)</option>
+                <option value="name-desc">İsim (Z-A)</option>
+              </select>
+            </div>
           </div>
 
           <div className="model-grid">
@@ -225,9 +225,9 @@ export default function Dashboard() {
                 return (
                   <div className="model-card" key={m.id}>
                     <div className="model-thumb">
-                      <img 
-                        src={thumbUrlWithCache} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      <img
+                        src={thumbUrlWithCache}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => { e.target.src = 'https://via.placeholder.com/300x180?text=Gorsel+Yukleniyor' }}
                         alt={m.name}
                       />
@@ -243,9 +243,9 @@ export default function Dashboard() {
                         <Link to={`/viewer?model=${m.name}`} target="_blank" className="btn-sm" rel="noopener noreferrer">👁️ Gözat</Link>
                         <button className="btn-sm danger" onClick={() => handleDeleteModel(m.id, m.name)}>🗑️</button>
                       </div>
-                      <button 
-                        className="btn-sm primary" 
-                        style={{ width: '100%', marginTop: '8px' }} 
+                      <button
+                        className="btn-sm primary"
+                        style={{ width: '100%', marginTop: '8px' }}
                         onClick={() => setLinkModalData({ name: m.name, url: `${BASE_URL}/viewer?model=${encodeURIComponent(m.name)}` })}
                       >
                         🔗 Paylaş & QR
@@ -260,21 +260,21 @@ export default function Dashboard() {
       </main>
 
       {/* QR & Link Modal */}
-      <div className={`modal-backdrop ${linkModalData ? 'open' : ''}`} onClick={(e) => { if(e.target === e.currentTarget) setLinkModalData(null); }}>
-          {linkModalData && (
-            <div className="modal">
-                <h3>{linkModalData.name.toUpperCase()}</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text2)', margin: '10px 0' }}>AR deneyimi için QR kodu müşterilerinizle paylaşın.</p>
-                <div className="qr-code-wrapper">
-                  <QRCodeSVG value={linkModalData.url} size={180} />
-                </div>
-                <div className="url-box">{linkModalData.url}</div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="btn-sm primary" onClick={handleCopyLink}>Kopyala</button>
-                    <button className="btn-sm" onClick={() => setLinkModalData(null)}>Kapat</button>
-                </div>
+      <div className={`modal-backdrop ${linkModalData ? 'open' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) setLinkModalData(null); }}>
+        {linkModalData && (
+          <div className="modal">
+            <h3>{linkModalData.name.toUpperCase()}</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text2)', margin: '10px 0' }}>AR deneyimi için QR kodu müşterilerinizle paylaşın.</p>
+            <div className="qr-code-wrapper">
+              <QRCodeSVG value={linkModalData.url} size={180} />
             </div>
-          )}
+            <div className="url-box">{linkModalData.url}</div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="btn-sm primary" onClick={handleCopyLink}>Kopyala</button>
+              <button className="btn-sm" onClick={() => setLinkModalData(null)}>Kapat</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Toast Notification */}
