@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import './Viewer.css';
 
 export default function Viewer() {
@@ -14,6 +15,7 @@ export default function Viewer() {
   const [variations, setVariations] = useState([]);
   const [activeVar, setActiveVar] = useState(null);
   const [arAvailable, setArAvailable] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -93,12 +95,18 @@ export default function Viewer() {
   }, [modelUrl, modelId]);
 
   const handleArClick = () => {
-    const mv = mvRef.current;
-    if (!mv) return;
-    if (typeof mv.activateAR === 'function') {
-      mv.activateAR();
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      const mv = mvRef.current;
+      if (!mv) return;
+      if (typeof mv.activateAR === 'function') {
+        mv.activateAR();
+      } else {
+        alert("Bu cihaz veya tarayıcı AR'ı desteklemiyor.\n\nAndroid: Chrome kullanın ve Google Play Services for AR'ın yüklü olduğundan emin olun.\niOS: Safari kullanın.");
+      }
     } else {
-      alert("Bu cihaz veya tarayıcı AR'ı desteklemiyor.\n\nAndroid: Chrome kullanın ve Google Play Services for AR'ın yüklü olduğundan emin olun.\niOS: Safari kullanın.");
+      setShowQrModal(true);
     }
   };
 
@@ -180,6 +188,20 @@ export default function Viewer() {
       }}>
         Cemer IT tarafından geliştirildi
       </div>
+
+      {/* QR Modal for Desktop */}
+      {showQrModal && (
+        <div className="viewer-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowQrModal(false); }}>
+          <div className="viewer-modal">
+            <h3>AR Deneyimi</h3>
+            <p>Modeli gerçek dünyada görmek için telefonunuzun<br/>kamerasıyla bu QR kodu okutun.</p>
+            <div style={{ background: 'white', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
+              <QRCodeSVG value={window.location.href} size={200} />
+            </div>
+            <button className="viewer-modal-close" onClick={() => setShowQrModal(false)}>Kapat</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
