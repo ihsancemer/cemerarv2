@@ -47,6 +47,39 @@ export default function Upload() {
   const [exposure, setExposure] = useState(1.5);
   const [sunAngle, setSunAngle] = useState(45);
 
+  const defaultColors = Array(15).fill('#444444');
+  const [paletteColors, setPaletteColors] = useState(() => {
+    const saved = localStorage.getItem('cemer_ar_palette');
+    if (saved) {
+      try { return JSON.parse(saved); } catch(e) {}
+    }
+    return defaultColors;
+  });
+  const [editingPaletteIndex, setEditingPaletteIndex] = useState(null);
+  const paletteInputRef = useRef(null);
+
+  const handlePaletteClick = (color) => {
+    if (engine.current.selectedMesh) {
+      setMeshColor(color);
+      updateSelectedMeshColor(color, meshSaturation);
+    }
+  };
+
+  const triggerColorEdit = (index) => {
+    setEditingPaletteIndex(index);
+    if (paletteInputRef.current) {
+      paletteInputRef.current.click();
+    }
+  };
+
+  const handlePaletteColorChange = (e) => {
+    if (editingPaletteIndex === null) return;
+    const newColors = [...paletteColors];
+    newColors[editingPaletteIndex] = e.target.value;
+    setPaletteColors(newColors);
+    localStorage.setItem('cemer_ar_palette', JSON.stringify(newColors));
+  };
+
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -524,6 +557,26 @@ export default function Upload() {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                <div className="editor-panel">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span className="editor-label" style={{ marginBottom: 0 }}>Sık Kullanılan Renkler</span>
+                        <span style={{ fontSize: '9px', color: '#888' }}>Çift Tıkla: Düzenle</span>
+                    </div>
+                    <div className="palette-grid">
+                        {paletteColors.map((col, i) => (
+                            <div 
+                                key={i} 
+                                className="palette-color-box"
+                                style={{ backgroundColor: col }}
+                                onClick={() => handlePaletteClick(col)}
+                                onDoubleClick={() => triggerColorEdit(i)}
+                                title="Sol tık: Seçili parçaya uygula | Çift tık: Rengi Değiştir"
+                            ></div>
+                        ))}
+                    </div>
+                    <input type="color" ref={paletteInputRef} style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0 }} onChange={handlePaletteColorChange} />
                 </div>
 
                 <div className="editor-panel">

@@ -47,3 +47,22 @@
 
 .editor-spinner { border: 3px solid rgba(25,176,199,0.1); border-left-color: var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Palette Grid */
+.palette-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+.palette-color-box {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+}
+.palette-color-box:hover {
+    transform: scale(1.05);
+    border-color: var(--accent);
+}
