@@ -1,0 +1,180 @@
+.playground-wrapper {
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg);
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+.playground-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.playground-intro h2 {
+  font-size: 32px;
+  color: #222;
+  margin-bottom: 15px;
+}
+
+.playground-intro p {
+  color: #666;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.intro-models {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 500px;
+}
+
+.intro-models img {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.ar-trigger-btn {
+  position: absolute !important;
+  bottom: 40px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: var(--cemer-turk) !important;
+  color: white !important;
+  border: none !important;
+  padding: 16px 40px !important;
+  border-radius: 50px !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  box-shadow: 0 10px 30px rgba(25, 176, 199, 0.4) !important;
+  z-index: 100 !important;
+  text-transform: uppercase;
+}
+
+.canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+}
+
+/* DOM Overlay AR UI */
+#ar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none; /* Let clicks pass through except on UI */
+}
+
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  pointer-events: auto;
+}
+
+.overlay-header span {
+  background: rgba(0,0,0,0.5);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(5px);
+}
+
+.clear-btn {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.instruction-toast {
+  align-self: center;
+  background: white;
+  color: var(--cemer-turk);
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  animation: bounce 2s infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.model-carousel {
+  display: flex;
+  gap: 15px;
+  padding: 20px;
+  overflow-x: auto;
+  pointer-events: auto;
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+}
+
+.carousel-item {
+  min-width: 80px;
+  background: white;
+  border-radius: 16px;
+  padding: 5px;
+  cursor: pointer;
+  transition: 0.2s;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  border: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.carousel-item.active {
+  border-color: var(--cemer-turk);
+  transform: translateY(-5px);
+}
+
+.carousel-item img {
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.item-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #333;
+  margin-top: 5px;
+  text-align: center;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

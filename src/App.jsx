@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Upload from './pages/Upload';
 import Viewer from './pages/Viewer';
+import ArPlayground from './pages/ArPlayground';
 import './index.css';
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/upload" element={<Upload />} />
         <Route path="/viewer" element={<Viewer />} />
+        <Route path="/playground" element={<ArPlayground />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

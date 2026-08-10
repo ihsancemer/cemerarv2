@@ -175,7 +175,10 @@ export default function Dashboard() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cemer-turk)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
             Pro Editor
           </Link>
-
+          <Link className="nav-item" to="/playground" style={{ display: 'flex', alignItems: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cemer-turk)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            AR Sahne Kurucu
+          </Link>
         </nav>
 
         {currentUser && (
