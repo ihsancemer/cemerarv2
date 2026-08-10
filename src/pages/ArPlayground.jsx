@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { ARButton, XR, useHitTest } from '@react-three/xr';
+import { ARButton, XR, useXRHitTest as useHitTest } from '@react-three/xr';
 import { useGLTF } from '@react-three/drei';
 import { supabase } from '../supabase';
 import './ArPlayground.css';
