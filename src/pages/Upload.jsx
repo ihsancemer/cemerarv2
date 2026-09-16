@@ -19,8 +19,8 @@ export default function Upload() {
 
   const engine = useRef({
     scene: null, camera: null, renderer: null, orbit: null, 
-    currentModel: null, grid: null, selectionBox: null, sunLight: null,
-    selectedMesh: null, transformControl: null, reqId: null
+    currentModel: null, grid: null, selectionBoxes: [], sunLight: null,
+    selectedMeshes: [], transformControl: null, reqId: null
   });
 
   // UI State
@@ -59,7 +59,7 @@ export default function Upload() {
   const paletteInputRef = useRef(null);
 
   const handlePaletteClick = (color) => {
-    if (engine.current.selectedMesh) {
+    if (engine.current.selectedMeshes.length > 0) {
       setMeshColor(color);
       updateSelectedMeshColor(color, meshSaturation);
     }
@@ -132,10 +132,6 @@ export default function Upload() {
     e.grid = new THREE.GridHelper(20, 20, 0x2a2a2e, 0x1a1a1e);
     e.scene.add(e.grid);
     
-    e.selectionBox = new THREE.BoxHelper(new THREE.Mesh(), 0x19b0c7);
-    e.selectionBox.visible = false;
-    e.scene.add(e.selectionBox);
-    
     e.transformControl = new TransformControls(e.camera, e.renderer.domElement);
     e.transformControl.addEventListener('dragging-changed', (event) => {
         e.orbit.enabled = !event.value;
@@ -155,9 +151,11 @@ export default function Upload() {
       raycaster.setFromCamera(mouse, e.camera);
       const hits = raycaster.intersectObject(e.currentModel, true);
       if (hits.length > 0 && hits[0].object.isMesh) {
-        selectPart(hits[0].object);
+        selectPart(hits[0].object, event.shiftKey || event.ctrlKey || event.metaKey);
       } else {
-        deselectPart();
+        if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
+          deselectPart();
+        }
       }
     };
     
@@ -237,26 +235,55 @@ export default function Upload() {
     }
   };
 
-  const selectPart = (mesh) => {
+  const updateUIForSelection = () => {
     const e = engine.current;
-    e.selectedMesh = mesh;
-    if(!e.selectedMesh.material.isCloned) { 
-        e.selectedMesh.material = e.selectedMesh.material.clone(); 
-        e.selectedMesh.material.isCloned = true; 
+    const lastMesh = e.selectedMeshes[e.selectedMeshes.length - 1];
+    if (!lastMesh) return;
+    
+    setMeshName(e.selectedMeshes.length > 1 ? `${e.selectedMeshes.length} Parça Seçili` : (lastMesh.name || "Mesh"));
+    setMeshColor("#" + lastMesh.material.color.getHexString());
+    setMeshOpacity(lastMesh.material.opacity !== undefined ? lastMesh.material.opacity : 1);
+    setMeshMetal(lastMesh.material.metalness !== undefined ? lastMesh.material.metalness : 0);
+  };
+
+  const selectPart = (mesh, isMultiSelect = false) => {
+    const e = engine.current;
+    
+    if (!isMultiSelect) {
+      deselectPart();
     }
-    e.selectionBox.setFromObject(e.selectedMesh); 
-    e.selectionBox.visible = true;
+
+    if (e.selectedMeshes.includes(mesh)) {
+        if (isMultiSelect) {
+            const idx = e.selectedMeshes.indexOf(mesh);
+            e.selectedMeshes.splice(idx, 1);
+            e.scene.remove(e.selectionBoxes[idx]);
+            e.selectionBoxes.splice(idx, 1);
+            if (e.selectedMeshes.length === 0) setHasSelection(false);
+            else updateUIForSelection();
+            return;
+        }
+    }
+
+    if(!mesh.material.isCloned) { 
+        mesh.material = mesh.material.clone(); 
+        mesh.material.isCloned = true; 
+    }
+    
+    e.selectedMeshes.push(mesh);
+    const boxHelper = new THREE.BoxHelper(mesh, 0x19b0c7);
+    e.selectionBoxes.push(boxHelper);
+    e.scene.add(boxHelper);
     
     setHasSelection(true);
-    setMeshName(mesh.name || "Mesh");
-    setMeshColor("#" + e.selectedMesh.material.color.getHexString());
-    setMeshOpacity(e.selectedMesh.material.opacity !== undefined ? e.selectedMesh.material.opacity : 1);
-    setMeshMetal(e.selectedMesh.material.metalness !== undefined ? e.selectedMesh.material.metalness : 0);
+    updateUIForSelection();
   };
 
   const deselectPart = () => {
-    engine.current.selectedMesh = null;
-    if(engine.current.selectionBox) engine.current.selectionBox.visible = false;
+    const e = engine.current;
+    if (e.selectionBoxes) e.selectionBoxes.forEach(box => e.scene.remove(box));
+    e.selectionBoxes = [];
+    e.selectedMeshes = [];
     setHasSelection(false);
   };
 
@@ -302,7 +329,7 @@ export default function Upload() {
   };
 
   const handleTexChange = (e) => {
-    if(!engine.current.selectedMesh || !e.target.files[0]) return;
+    if(engine.current.selectedMeshes.length === 0 || !e.target.files[0]) return;
     const reader = new FileReader();
     reader.onload = (re) => {
         const img = new Image(); img.src = re.target.result;
@@ -314,8 +341,10 @@ export default function Upload() {
             tex.repeat.set(texScale, texScale); 
             tex.rotation = THREE.MathUtils.degToRad(texRotate);
             tex.needsUpdate = true;
-            engine.current.selectedMesh.material.map = tex; 
-            engine.current.selectedMesh.material.needsUpdate = true;
+            engine.current.selectedMeshes.forEach(mesh => {
+                mesh.material.map = tex; 
+                mesh.material.needsUpdate = true;
+            });
         };
     };
     reader.readAsDataURL(e.target.files[0]);
@@ -324,12 +353,14 @@ export default function Upload() {
 
   // Mesh Properties updaters
   const updateSelectedMeshColor = (hex, sat) => {
-    const { selectedMesh } = engine.current;
-    if(!selectedMesh) return;
+    const { selectedMeshes } = engine.current;
+    if(selectedMeshes.length === 0) return;
     const color = new THREE.Color(hex);
     const hsl = {}; color.getHSL(hsl);
     color.setHSL(hsl.h, sat, hsl.l);
-    selectedMesh.material.color.copy(color);
+    selectedMeshes.forEach(mesh => {
+        mesh.material.color.copy(color);
+    });
   };
 
   const handleMeshColor = (e) => {
@@ -344,37 +375,35 @@ export default function Upload() {
   const handleTexScale = (e) => {
       const v = parseFloat(e.target.value);
       setTexScale(v);
-      if(engine.current.selectedMesh?.material.map) {
-          engine.current.selectedMesh.material.map.repeat.set(v, v);
-      }
+      engine.current.selectedMeshes.forEach(mesh => {
+          if(mesh.material.map) mesh.material.map.repeat.set(v, v);
+      });
   };
   const handleTexRotate = (e) => {
       const v = parseFloat(e.target.value);
       setTexRotate(v);
-      if(engine.current.selectedMesh?.material.map) {
-          engine.current.selectedMesh.material.map.rotation = THREE.MathUtils.degToRad(v);
-      }
+      engine.current.selectedMeshes.forEach(mesh => {
+          if(mesh.material.map) mesh.material.map.rotation = THREE.MathUtils.degToRad(v);
+      });
   };
   const handleMeshOpacity = (e) => {
       const v = parseFloat(e.target.value);
       setMeshOpacity(v);
-      if(engine.current.selectedMesh) {
-          engine.current.selectedMesh.material.transparent = v < 1; 
-          engine.current.selectedMesh.material.opacity = v;
-      }
+      engine.current.selectedMeshes.forEach(mesh => {
+          mesh.material.transparent = v < 1; 
+          mesh.material.opacity = v;
+      });
   };
   const handleMeshMetal = (e) => {
       const v = parseFloat(e.target.value);
       setMeshMetal(v);
-      if(engine.current.selectedMesh) {
-          engine.current.selectedMesh.material.metalness = v;
-      }
+      engine.current.selectedMeshes.forEach(mesh => {
+          mesh.material.metalness = v;
+      });
   };
   const handleDeleteMesh = () => {
-      if(engine.current.selectedMesh) {
-          engine.current.selectedMesh.removeFromParent();
-          deselectPart();
-      }
+      engine.current.selectedMeshes.forEach(mesh => mesh.removeFromParent());
+      deselectPart();
   };
 
   // Scene properties updaters
@@ -465,11 +494,12 @@ export default function Upload() {
         e.currentModel.traverse(child => { if(child.isMesh) child.updateMatrixWorld(true); });
 
         e.grid.visible = false; 
-        e.selectionBox.visible = false;
+        e.selectionBoxes.forEach(box => { box.visible = false; });
         if (e.transformControl) e.transformControl.visible = false;
         e.renderer.render(e.scene, e.camera);
         const thumbBlob = await fetch(e.renderer.domElement.toDataURL("image/webp", 0.8)).then(r => r.blob());
         e.grid.visible = true;
+        e.selectionBoxes.forEach(box => { box.visible = true; });
         if (e.transformControl) e.transformControl.visible = true;
 
         const exporter = new GLTFExporter();
