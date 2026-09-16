@@ -64,7 +64,9 @@ export default function Viewer() {
     mv.setAttribute('auto-rotate', '');
     mv.setAttribute('rotation-speed', '0.5');
     mv.setAttribute('interpolation-decay', '200');
-    mv.setAttribute('loading', 'eager');
+    mv.setAttribute('loading', 'lazy');
+    mv.setAttribute('poster', `${modelUrl.replace('-3d.glb', '-thumb.webp')}`);
+    mv.setAttribute('reveal', 'auto');
     mv.setAttribute('crossorigin', 'anonymous');
 
     const handleProgress = (ev) => setProgress(ev.detail.totalProgress * 100);
