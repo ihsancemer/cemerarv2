@@ -43,6 +43,7 @@ export default function Upload() {
   const [texRotate, setTexRotate] = useState(0);
   const [meshOpacity, setMeshOpacity] = useState(1);
   const [meshMetal, setMeshMetal] = useState(0);
+  const [meshRoughness, setMeshRoughness] = useState(1);
 
   const [exposure, setExposure] = useState(1.5);
   const [sunAngle, setSunAngle] = useState(45);
@@ -244,6 +245,7 @@ export default function Upload() {
     setMeshColor("#" + lastMesh.material.color.getHexString());
     setMeshOpacity(lastMesh.material.opacity !== undefined ? lastMesh.material.opacity : 1);
     setMeshMetal(lastMesh.material.metalness !== undefined ? lastMesh.material.metalness : 0);
+    setMeshRoughness(lastMesh.material.roughness !== undefined ? lastMesh.material.roughness : 1);
   };
 
   const selectPart = (mesh, isMultiSelect = false) => {
@@ -399,6 +401,22 @@ export default function Upload() {
       setMeshMetal(v);
       engine.current.selectedMeshes.forEach(mesh => {
           mesh.material.metalness = v;
+      });
+  };
+  const handleMeshRoughness = (e) => {
+      const v = parseFloat(e.target.value);
+      setMeshRoughness(v);
+      engine.current.selectedMeshes.forEach(mesh => {
+          mesh.material.roughness = v;
+      });
+  };
+  const applyMetalPreset = () => {
+      setMeshMetal(1);
+      setMeshRoughness(0.15); // Low roughness = high gloss
+      engine.current.selectedMeshes.forEach(mesh => {
+          mesh.material.metalness = 1;
+          mesh.material.roughness = 0.15;
+          mesh.material.needsUpdate = true;
       });
   };
   const handleDeleteMesh = () => {
@@ -641,10 +659,21 @@ export default function Upload() {
                         <span className="editor-label">Opaklık</span>
                         <input type="range" min="0" max="1" step="0.05" value={meshOpacity} onChange={handleMeshOpacity} />
 
-                        <span className="editor-label">Metalik</span>
-                        <input type="range" min="0" max="1" step="0.05" value={meshMetal} onChange={handleMeshMetal} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                            <span className="editor-label" style={{ marginTop: 0 }}>Metalik Özellikler</span>
+                            <button className="editor-btn" style={{ width: 'auto', padding: '2px 8px', fontSize: '11px', marginBottom: '8px' }} onClick={applyMetalPreset}>✨ Tam Metal Yap</button>
+                        </div>
                         
-                        <button className="editor-btn" style={{ borderColor: '#ef4444', color: '#ef4444', marginTop: '8px', background: 'rgba(239,68,68,0.05)' }} onClick={handleDeleteMesh}>🗑️ Parçayı Sil</button>
+                        <span className="editor-label" style={{ fontSize: '11px', color: '#888' }}>Metalik Yansıma Miktarı</span>
+                        <input type="range" min="0" max="1" step="0.05" value={meshMetal} onChange={handleMeshMetal} />
+
+                        <span className="editor-label" style={{ fontSize: '11px', color: '#888' }}>Pürüzsüzlük (Parlaklık)</span>
+                        <input type="range" min="0" max="1" step="0.05" value={1 - meshRoughness} onChange={(e) => {
+                            const v = 1 - parseFloat(e.target.value); // ters mantık: 1 = çok parlak (roughness 0)
+                            handleMeshRoughness({ target: { value: v } });
+                        }} />
+                        
+                        <button className="editor-btn" style={{ borderColor: '#ef4444', color: '#ef4444', marginTop: '15px', background: 'rgba(239,68,68,0.05)' }} onClick={handleDeleteMesh}>🗑️ Parçayı Sil</button>
                     </div>
                 )}
 
