@@ -66,3 +66,12 @@
     transform: scale(1.05);
     border-color: var(--accent);
 }
+
+/* Kutu ile Seçim Özelliği Stilleri */
+.selectBox {
+    border: 1px solid rgba(25, 176, 199, 0.8);
+    background-color: rgba(25, 176, 199, 0.2);
+    position: absolute;
+    z-index: 100;
+    pointer-events: none;
+}

@@ -9,6 +9,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
 import './Upload.css';
 
 export default function Upload() {
@@ -21,8 +22,10 @@ export default function Upload() {
   const engine = useRef({
     scene: null, camera: null, renderer: null, orbit: null, 
     currentModel: null, grid: null, selectionBoxes: [], sunLight: null,
-    selectedMeshes: [], transformControl: null, reqId: null
+    selectedMeshes: [], transformControl: null, reqId: null,
+    selectionBox: null, history: []
   });
+  const selectionDivRef = useRef(null);
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +41,7 @@ export default function Upload() {
   const [varName, setVarName] = useState('');
   const [variations, setVariations] = useState([]);
   
+  const [isBoxSelectMode, setIsBoxSelectMode] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [meshName, setMeshName] = useState('-');
   const [meshColor, setMeshColor] = useState('#ffffff');
@@ -93,7 +97,16 @@ export default function Upload() {
     initThree();
     checkEditMode();
 
+    const handleKeyDown = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            undoLastAction();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       if (engine.current.reqId) cancelAnimationFrame(engine.current.reqId);
       if (engine.current.renderer) {
         engine.current.renderer.dispose();
@@ -101,6 +114,53 @@ export default function Upload() {
       if (containerRef.current) containerRef.current.innerHTML = '';
     };
   }, []);
+
+  const saveHistory = (type, customData = null) => {
+      const h = engine.current.history;
+      const selected = engine.current.selectedMeshes;
+      
+      if (type === 'delete') {
+          if(selected.length === 0) return;
+          h.push({ type: 'delete', meshes: [...selected], parents: selected.map(m => m.parent) });
+      } else if (type === 'material') {
+          if(selected.length === 0) return;
+          const states = selected.map(m => ({
+              mesh: m, color: m.material.color.clone(), opacity: m.material.opacity,
+              transparent: m.material.transparent, metalness: m.material.metalness, roughness: m.material.roughness
+          }));
+          h.push({ type: 'material', states });
+      } else if (type === 'transform') {
+          const target = customData ? [customData] : selected;
+          if(target.length === 0) return;
+          const states = target.map(m => ({
+              mesh: m, position: m.position.clone(), rotation: m.rotation.clone(), scale: m.scale.clone()
+          }));
+          h.push({ type: 'transform', states });
+      }
+      
+      if (h.length > 50) h.shift();
+  };
+
+  const undoLastAction = () => {
+      const h = engine.current.history;
+      if (h.length === 0) return;
+      const action = h.pop();
+      
+      if (action.type === 'delete') {
+          action.meshes.forEach((m, i) => { if(action.parents[i]) action.parents[i].add(m); });
+      } else if (action.type === 'material') {
+          action.states.forEach(s => {
+              s.mesh.material.color.copy(s.color); s.mesh.material.opacity = s.opacity;
+              s.mesh.material.transparent = s.transparent; s.mesh.material.metalness = s.metalness;
+              s.mesh.material.roughness = s.roughness; s.mesh.material.needsUpdate = true;
+          });
+          updateUIForSelection();
+      } else if (action.type === 'transform') {
+          action.states.forEach(s => {
+              s.mesh.position.copy(s.position); s.mesh.rotation.copy(s.rotation); s.mesh.scale.copy(s.scale);
+          });
+      }
+  };
 
   const initThree = () => {
     const e = engine.current;
@@ -142,28 +202,87 @@ export default function Upload() {
     });
     e.scene.add(e.transformControl);
 
-    // Raycaster logic
+    e.selectionBox = new SelectionBox(e.camera, e.scene);
+
+    // Raycaster & Box Selection logic
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    let isDrawingBox = false;
+    let startPoint = new THREE.Vector2();
 
     const onPointerDown = (event) => {
       if (!e.currentModel) return;
       if (e.transformControl && e.transformControl.dragging) return;
+      
       const rect = e.renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // Mode check: Shift key OR UI Toggle Button
+      const isBoxModeActive = event.shiftKey || document.body.getAttribute('data-box-select') === 'true';
+
+      if (isBoxModeActive) {
+          isDrawingBox = true;
+          e.orbit.enabled = false;
+          e.selectionBox.startPoint.set(mouse.x, mouse.y, 0.5);
+          startPoint.set(event.clientX, event.clientY);
+          
+          if(selectionDivRef.current) {
+              selectionDivRef.current.style.display = 'block';
+              selectionDivRef.current.style.left = event.clientX + 'px';
+              selectionDivRef.current.style.top = event.clientY + 'px';
+              selectionDivRef.current.style.width = '0px';
+              selectionDivRef.current.style.height = '0px';
+          }
+          return;
+      }
+
       raycaster.setFromCamera(mouse, e.camera);
       const hits = raycaster.intersectObject(e.currentModel, true);
       if (hits.length > 0 && hits[0].object.isMesh) {
-        selectPart(hits[0].object, event.shiftKey || event.ctrlKey || event.metaKey);
+        selectPart(hits[0].object, event.ctrlKey || event.metaKey);
       } else {
-        if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        if (!event.ctrlKey && !event.metaKey) {
           deselectPart();
         }
       }
     };
     
+    const onPointerMove = (event) => {
+        if (!isDrawingBox) return;
+        const rect = e.renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        e.selectionBox.endPoint.set(mouse.x, mouse.y, 0.5);
+        
+        if(selectionDivRef.current) {
+            selectionDivRef.current.style.left = Math.min(event.clientX, startPoint.x) + 'px';
+            selectionDivRef.current.style.top = Math.min(event.clientY, startPoint.y) + 'px';
+            selectionDivRef.current.style.width = Math.abs(event.clientX - startPoint.x) + 'px';
+            selectionDivRef.current.style.height = Math.abs(event.clientY - startPoint.y) + 'px';
+        }
+    };
+    
+    const onPointerUp = (event) => {
+        if (isDrawingBox) {
+            isDrawingBox = false;
+            e.orbit.enabled = true;
+            if(selectionDivRef.current) selectionDivRef.current.style.display = 'none';
+            
+            const selected = e.selectionBox.select();
+            
+            // Eğer CTRL'ye basılıysa mevcut seçime ekle, değilse önce öncekileri temizle
+            if (!event.ctrlKey && !event.metaKey) deselectPart();
+            
+            selected.forEach(mesh => {
+                if(mesh.isMesh) selectPart(mesh, true);
+            });
+        }
+    };
+    
     container.addEventListener('pointerdown', onPointerDown);
+    container.addEventListener('pointermove', onPointerMove);
+    container.addEventListener('pointerup', onPointerUp);
 
     const animate = () => {
       e.reqId = requestAnimationFrame(animate);
@@ -520,6 +639,7 @@ export default function Upload() {
       });
   };
   const applyMetalPreset = () => {
+      saveHistory('material');
       setMeshMetal(1);
       setMeshRoughness(0.15); // Low roughness = high gloss
       engine.current.selectedMeshes.forEach(mesh => {
@@ -529,6 +649,7 @@ export default function Upload() {
       });
   };
   const handleDeleteMesh = () => {
+      saveHistory('delete');
       engine.current.selectedMeshes.forEach(mesh => mesh.removeFromParent());
       deselectPart();
   };
@@ -547,8 +668,12 @@ export default function Upload() {
 
 
   // Transformations
-  const rotateModel = () => { if(engine.current.currentModel) engine.current.currentModel.rotation.y += Math.PI / 2; };
+  const rotateModel = () => { 
+      saveHistory('transform', engine.current.currentModel);
+      if(engine.current.currentModel) engine.current.currentModel.rotation.y += Math.PI / 2; 
+  };
   const centerAndSnapToFloor = () => { 
+      saveHistory('transform', engine.current.currentModel);
       const model = engine.current.currentModel;
       if(model) { 
           model.updateMatrixWorld(true);
@@ -559,10 +684,17 @@ export default function Upload() {
           model.position.y -= box.min.y; 
       } 
   };
-  const scaleCM = () => { if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.01); };
-  const scaleMM = () => { if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.001); };
+  const scaleCM = () => { 
+      saveHistory('transform', engine.current.currentModel);
+      if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.01); 
+  };
+  const scaleMM = () => { 
+      saveHistory('transform', engine.current.currentModel);
+      if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.001); 
+  };
 
   const autoFitAndCenter = () => {
+      saveHistory('transform', engine.current.currentModel);
       const model = engine.current.currentModel;
       if (!model) return;
       
@@ -746,6 +878,21 @@ export default function Upload() {
         <div className="editor-workspace">
             <div className="editor-sidebar">
                 <div className="editor-panel">
+                    <span className="editor-label">Kutu Seçim Modu</span>
+                    <button 
+                        className={`editor-btn ${isBoxSelectMode ? 'primary' : ''}`} 
+                        onClick={() => {
+                            const newState = !isBoxSelectMode;
+                            setIsBoxSelectMode(newState);
+                            document.body.setAttribute('data-box-select', newState.toString());
+                        }}
+                    >
+                        {isBoxSelectMode ? '🟩 Kutu Çizimi Aktif' : '🖱️ Serbest Kamera (Orbit)'}
+                    </button>
+                    <div style={{ fontSize: '10px', color: '#888', marginTop: '6px' }}>Kısayol: Farenizle SHIFT'e basılı tutarak kutu çizebilirsiniz. Geri almak için Ctrl+Z yapın.</div>
+                </div>
+
+                <div className="editor-panel">
                     <span className="editor-label">Renk Varyasyonları</span>
                     <input type="text" value={varName} onChange={e => setVarName(e.target.value)} placeholder="Varyasyon İsmi..." />
                     <button className="editor-btn" onClick={handleAddVar}>➕ Varyasyon Olarak Kaydet</button>
@@ -795,7 +942,7 @@ export default function Upload() {
                 </div>
                 
                 {hasSelection && (
-                    <div className="editor-panel">
+                    <div className="editor-panel" onPointerDown={() => saveHistory('material')}>
                         <span className="editor-label">Seçili Parça: <span style={{ color: 'var(--accent)' }}>{meshName}</span></span>
                         <span className="editor-label">Renk ve Soldurma</span>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -846,6 +993,7 @@ export default function Upload() {
             </div>
             
             <div className="editor-viewport" ref={containerRef} tabIndex="0">
+                <div ref={selectionDivRef} className="selectBox"></div>
                 <div className={`editor-loading-ov ${isLoading ? 'open' : ''}`}>
                     <div className="editor-spinner"></div>
                     <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '18px', marginTop: '15px' }}>{loadingText}</div>
