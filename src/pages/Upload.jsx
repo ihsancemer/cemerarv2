@@ -4,6 +4,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -330,6 +332,13 @@ export default function Upload() {
         dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
         const loader = new GLTFLoader();
         loader.setDRACOLoader(dracoLoader);
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        if (engine.current.renderer) {
+            const ktx2Loader = new KTX2Loader()
+                .setTranscoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/')
+                .detectSupport(engine.current.renderer);
+            loader.setKTX2Loader(ktx2Loader);
+        }
         
         const glbUrlWithCache = glbRes.publicUrl + `?t=${Date.now()}`;
         
@@ -424,6 +433,15 @@ export default function Upload() {
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
     loader.setDRACOLoader(dracoLoader);
     
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    
+    if (engine.current.renderer) {
+        const ktx2Loader = new KTX2Loader()
+            .setTranscoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/basis/')
+            .detectSupport(engine.current.renderer);
+        loader.setKTX2Loader(ktx2Loader);
+    }
+    
     loader.load(url, (gltf) => {
         const eng = engine.current;
         if(eng.currentModel) {
@@ -441,9 +459,9 @@ export default function Upload() {
         
         hideLoading();
     }, undefined, (err) => {
-        console.error(err);
+        console.error("Yükleme Hatası Detayı:", err);
         hideLoading();
-        alert("Model yükleme hatası!");
+        alert(`Model yükleme hatası!\nSebep: ${err.message || 'Bilinmeyen Hata (Konsola bakınız)'}`);
     });
   };
 
