@@ -829,14 +829,22 @@ export default function Upload() {
                 
                 const compressedArray = await io.writeBinary(document);
                 finalBuffer = compressedArray.buffer;
-                console.log(`Draco Sıkıştırması Başarılı! Orijinal: ${(buffer.byteLength/1024/1024).toFixed(2)}MB, Yeni: ${(finalBuffer.byteLength/1024/1024).toFixed(2)}MB`);
+                
+                const origMB = (buffer.byteLength / 1024 / 1024).toFixed(2);
+                const newMB = (finalBuffer.byteLength / 1024 / 1024).toFixed(2);
+                const saved = (100 - (finalBuffer.byteLength / buffer.byteLength) * 100).toFixed(0);
+                
+                setLoadingText(`✅ DRACO BAŞARILI! Orijinal: ${origMB}MB -> Yeni: ${newMB}MB (%${saved} Küçüldü). BULUTA YÜKLENİYOR...`);
+                // Kullanıcının sonucu okuyabilmesi için kısa bir bekleme
+                await new Promise(r => setTimeout(r, 3000));
+                
             } catch(dracoErr) {
                 console.error("Draco sıkıştırma hatası:", dracoErr);
-                alert("Draco motoru hata verdi, standart sıkıştırma ile devam ediliyor.");
+                setLoadingText(`⚠️ Draco motoru hata verdi. Standart sıkıştırma ile BULUTA YÜKLENİYOR...`);
+                await new Promise(r => setTimeout(r, 3000));
             }
 
             const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
-            setLoadingText("BULUTA YÜKLENİYOR...");
 
             const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
             if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
