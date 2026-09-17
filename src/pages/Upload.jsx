@@ -324,7 +324,7 @@ export default function Upload() {
         const { data: glbRes } = supabase.storage.from('models').getPublicUrl(`${editName}-3d.glb`);
         
         const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/'); 
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
         const loader = new GLTFLoader();
         loader.setDRACOLoader(dracoLoader);
         
@@ -418,7 +418,7 @@ export default function Upload() {
   const loadModelToScene = (url) => {
     const loader = new GLTFLoader();
     const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/'); 
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
     loader.setDRACOLoader(dracoLoader);
     
     loader.load(url, (gltf) => {
