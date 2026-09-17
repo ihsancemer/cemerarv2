@@ -801,8 +801,11 @@ export default function Upload() {
             const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
             setLoadingText("BULUTA YÜKLENİYOR...");
 
-            await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
-            await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
+            const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
+            if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
+            
+            const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
+            if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
             
             if(variations.length > 0) {
                 const vBlob = new Blob([JSON.stringify(variations)], { type: "application/json" });

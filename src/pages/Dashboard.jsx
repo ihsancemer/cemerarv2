@@ -93,20 +93,26 @@ export default function Dashboard() {
       showToast("İndiriliyor...");
       const { data } = supabase.storage.from('models').getPublicUrl(`${name}-3d.glb`);
       if (data && data.publicUrl) {
-        const response = await fetch(data.publicUrl);
-        if (!response.ok) throw new Error("Dosya bulunamadı");
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
+        try {
+            const response = await fetch(data.publicUrl);
+            if (!response.ok) throw new Error("Dosya bulunamadı (404)");
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
 
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = blobUrl;
-        a.download = `${name}.glb`;
-        document.body.appendChild(a);
-        a.click();
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = `${name}.glb`;
+            document.body.appendChild(a);
+            a.click();
 
-        window.URL.revokeObjectURL(blobUrl);
-        document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch(fetchErr) {
+            console.error("Fetch ile indirme başarısız:", fetchErr);
+            // CORS hatası veya başka bir hatada direkt linki aç
+            window.open(data.publicUrl, '_blank');
+        }
       } else {
         showToast("İndirme linki alınamadı.");
       }
