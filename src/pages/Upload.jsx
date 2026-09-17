@@ -739,7 +739,7 @@ export default function Upload() {
             setLoadingText("APPLE AR (USDZ) İÇİN OPTİMİZE EDİLİYOR...");
             try {
                 const usdzExporter = new USDZExporter();
-                const usdzBuffer = await usdzExporter.parse(e.currentModel);
+                const usdzBuffer = await usdzExporter.parse(e.currentModel, { quickLookCompatible: true, maxTextureSize: 1024 });
                 const usdzBlob = new Blob([usdzBuffer], { type: 'model/vnd.usdz+zip' });
                 const { error: usdzErr } = await supabase.storage.from('models').upload(`${name}-3d.usdz`, usdzBlob, { upsert: true });
                 if (usdzErr) console.error('USDZ yükleme hatası:', usdzErr);
