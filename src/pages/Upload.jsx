@@ -12,7 +12,7 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
 import { WebIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, draco, flatten, prune } from '@gltf-transform/functions';
+import { dedup, draco, flatten, prune, center } from '@gltf-transform/functions';
 import draco3d from 'draco3dgltf';
 import './Upload.css';
 
@@ -701,6 +701,10 @@ export default function Upload() {
       saveHistory('transform', engine.current.currentModel);
       if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.001); 
   };
+  const scaleUp = () => {
+      saveHistory('transform', engine.current.currentModel);
+      if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(100); 
+  };
 
   const autoFitAndCenter = () => {
       saveHistory('transform', engine.current.currentModel);
@@ -715,7 +719,9 @@ export default function Upload() {
       const maxDim = Math.max(size.x, size.y, size.z);
       
       // Otomatik ölçek tahmini (Oyun grupları genelde 2-15 metre arasıdır)
-      if (maxDim > 500) {
+      if (maxDim < 0.5) {
+          model.scale.multiplyScalar(100); // Hatalı küçülmüş (FBXLoader 0.01 uygulamış olabilir), 100x büyüt
+      } else if (maxDim > 500) {
           model.scale.multiplyScalar(0.001); // MM'den Metreye
       } else if (maxDim > 15) {
           model.scale.multiplyScalar(0.01); // CM'den Metreye
@@ -828,6 +834,7 @@ export default function Upload() {
                 
                 await document.transform(
                     flatten(),
+                    center({ pivot: 'below' }), // Garantili olarak merkeze ve zemine oturtur
                     dedup(),
                     prune(),
                     draco()
@@ -1022,8 +1029,9 @@ export default function Upload() {
                     </button>
 
                     <div style={{ display: 'flex', gap: '5px', marginBottom: '8px' }}>
-                        <button className="editor-btn" onClick={scaleCM}>CM ➔ M</button>
-                        <button className="editor-btn" onClick={scaleMM}>MM ➔ M</button>
+                        <button className="editor-btn" onClick={scaleCM} title="100 kat küçültür">CM ➔ M</button>
+                        <button className="editor-btn" onClick={scaleMM} title="1000 kat küçültür">MM ➔ M</button>
+                        <button className="editor-btn" onClick={scaleUp} title="100 kat büyütür">100x Büyüt</button>
                     </div>
                     <button className="editor-btn" onClick={rotateModel}>🔄 90° Çevir</button>
                     <button className="editor-btn" style={{ marginTop: '6px' }} onClick={centerAndSnapToFloor}>⬇️ Merkeze ve Zemine Hizala</button>
