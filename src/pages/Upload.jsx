@@ -8,6 +8,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
@@ -735,8 +736,16 @@ export default function Upload() {
             const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
             if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
 
-            const { error: iosErr } = await supabase.storage.from('models').upload(`${name}-3d-ios.glb`, glbBlob, { upsert: true });
-            if (iosErr) console.error('iOS GLB upload hatası:', iosErr);
+            setLoadingText("APPLE AR (USDZ) İÇİN OPTİMİZE EDİLİYOR...");
+            try {
+                const usdzExporter = new USDZExporter();
+                const usdzBuffer = await usdzExporter.parse(e.currentModel);
+                const usdzBlob = new Blob([usdzBuffer], { type: 'model/vnd.usdz+zip' });
+                const { error: usdzErr } = await supabase.storage.from('models').upload(`${name}-3d.usdz`, usdzBlob, { upsert: true });
+                if (usdzErr) console.error('USDZ yükleme hatası:', usdzErr);
+            } catch (err) {
+                console.error("USDZ dönüşüm hatası:", err);
+            }
 
             if(variations.length > 0) {
                 const vBlob = new Blob([JSON.stringify(variations)], { type: "application/json" });
