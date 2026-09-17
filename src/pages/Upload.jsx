@@ -37,6 +37,7 @@ export default function Upload() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
+  const [useDraco, setUseDraco] = useState(true); // false = sıkıştırma atlandı
   
   const [saveName, setSaveName] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -471,11 +472,13 @@ export default function Upload() {
             alert("FBX dosyaları tarayıcıda doğrudan açılamaz. Lütfen Sıkıştır & Dönüştür seçeneğini kullanın.");
             return;
         }
+        setUseDraco(false); // Bu dosyayı kaydetirken Draco uygulanmasın
         setShowUploadOptions(false);
         showLoading("MODEL AÇILIYOR...");
         loadModelToScene(URL.createObjectURL(pendingFile));
         return;
     }
+    setUseDraco(true); // Normal akış: Draco aktif
 
     setShowUploadOptions(false);
     showLoading("TARAYICIDA DÖNÜŞTÜRÜLÜYOR (Lütfen bekleyin)...");
@@ -807,8 +810,8 @@ export default function Upload() {
             setLoadingText("DRACO MOTORU ÇALIŞIYOR (Bu işlem modelin boyutuna göre 10-30sn sürebilir)...");
             let finalBuffer = buffer;
             
+            if (useDraco) {
             try {
-                // UI'ın güncellenmesi için ufak bir bekleme (Donmayı önler)
                 await new Promise(r => setTimeout(r, 100));
 
                 const io = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
@@ -824,7 +827,7 @@ export default function Upload() {
                 const document = await io.readBinary(new Uint8Array(buffer));
                 
                 await document.transform(
-                    flatten(),  // Tüm node transform'larını geometriye yak, AR boyutu platformlar arası eşit olsun
+                    flatten(),
                     dedup(),
                     prune(),
                     draco()
@@ -838,13 +841,17 @@ export default function Upload() {
                 const saved = (100 - (finalBuffer.byteLength / buffer.byteLength) * 100).toFixed(0);
                 
                 setLoadingText(`✅ DRACO BAŞARILI! Orijinal: ${origMB}MB -> Yeni: ${newMB}MB (%${saved} Küçüldü). BULUTA YÜKLENİYOR...`);
-                // Kullanıcının sonucu okuyabilmesi için kısa bir bekleme
                 await new Promise(r => setTimeout(r, 3000));
                 
             } catch(dracoErr) {
                 console.error("Draco sıkıştırma hatası:", dracoErr);
                 setLoadingText(`⚠️ Draco motoru hata verdi. Standart sıkıştırma ile devam ediliyor...`);
                 await new Promise(r => setTimeout(r, 2000));
+            }
+            } else {
+                // Draco atlandı — dosya zaten sıkıştırılmış
+                setLoadingText("⏭️ Sıkıştırma atlandı (mevcut format korunuyor). BULUTA YÜKLENİYOR...");
+                await new Promise(r => setTimeout(r, 1500));
             }
 
             const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
@@ -919,11 +926,11 @@ export default function Upload() {
                     <br/><br/>FBX dosyalarını görüntülemek ve sistemde kullanabilmek için mutlaka "Dönüştür ve Sıkıştır" seçeneğini kullanmalısınız.
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button className="editor-btn primary" onClick={() => processServerUpload('compress')}>
-                        🚀 Tarayıcıda Dönüştür & Sıkıştır (Önerilen)
+                    <button className="editor-btn primary" onClick={() => { setUseDraco(true); processServerUpload('compress'); }}>
+                        🚀 Tarayıcıda Dönüştür &amp; Sıkıştır (Önerilen)
                     </button>
-                    <button className="editor-btn" onClick={() => processServerUpload('original')}>
-                        📄 Olduğu Gibi Aç (Sadece GLB)
+                    <button className="editor-btn" style={{ background: 'rgba(90,200,120,0.15)', borderColor: 'rgba(90,200,120,0.4)', color: '#7eff9a' }} onClick={() => { setUseDraco(false); processServerUpload('original'); }}>
+                        ✅ Sıkıştırma Olmadan Devam Et (Zaten GLB ise)
                     </button>
                     <button className="editor-btn" onClick={() => setShowUploadOptions(false)} style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }}>
                         İPTAL
