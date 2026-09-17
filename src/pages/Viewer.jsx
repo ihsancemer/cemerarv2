@@ -56,7 +56,8 @@ export default function Viewer() {
     mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
-    // ios-src: model-viewer iOS için GLB'den otomatik USDZ üretir, ios-src gerekmez
+    // iOS AR için Draco'suz GLB — Apple Quick Look Draco desteklemiyor
+    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d-ios.glb`);
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('touch-action', 'pan-y');
     mv.setAttribute('shadow-intensity', '1.5');

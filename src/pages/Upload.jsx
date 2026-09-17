@@ -848,12 +848,36 @@ export default function Upload() {
 
             const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
 
+            // --- iOS AR için Draco'suz GLB üret ---
+            setLoadingText("📱 Apple AR için iOS versiyon hazırlanıyor...");
+            await new Promise(r => setTimeout(r, 60));
+            let iosGlbBlob = null;
+            try {
+                const ioForIos = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
+                const iosDoc = await ioForIos.readBinary(new Uint8Array(buffer)); // orijinal buffer, Draco yok
+                await iosDoc.transform(
+                    dedup(),
+                    prune()
+                    // draco() YOK — Apple AR Draco desteklemiyor
+                );
+                const iosArray = await ioForIos.writeBinary(iosDoc);
+                iosGlbBlob = new Blob([iosArray.buffer], { type: 'model/gltf-binary' });
+            } catch (iosErr) {
+                console.error('iOS GLB üretimi hatası:', iosErr);
+            }
+            // ------------------------------------------
+
             setLoadingText("DOSYALAR BULUTA YÜKLENİYOR...");
             const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
             if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
             
             const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
             if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
+
+            if (iosGlbBlob) {
+                const { error: iosErr } = await supabase.storage.from('models').upload(`${name}-3d-ios.glb`, iosGlbBlob, { upsert: true });
+                if (iosErr) console.error('iOS GLB upload hatası:', iosErr);
+            }
 
             if(variations.length > 0) {
                 const vBlob = new Blob([JSON.stringify(variations)], { type: "application/json" });
