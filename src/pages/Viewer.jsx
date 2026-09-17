@@ -56,8 +56,8 @@ export default function Viewer() {
     mv.setAttribute('src', modelUrl);
     mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d-ios.glb`);
     mv.setAttribute('ar', '');
-    // Doru sıra: Android'de webxr önce (tarayıcı içi), sonra scene-viewer, iOS'da quick-look
-    mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+    // Android'de yerleşik Google Scene Viewer (Apple Quick Look benzeri) uygulamasını önceliklendir
+    mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
     mv.setAttribute('xr-environment', '');
