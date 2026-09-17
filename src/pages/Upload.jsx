@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -340,12 +341,11 @@ export default function Upload() {
     if(!pendingFile) return;
     const isFbx = pendingFile.name.toLowerCase().endsWith('.fbx');
     
-    if (isFbx && action === 'original') {
-        alert("FBX dosyaları tarayıcıda doğrudan açılamaz. Lütfen Sıkıştır & Dönüştür seçeneğini kullanın.");
-        return;
-    }
-    
-    if (action === 'original' && !isFbx) {
+    if (action === 'original') {
+        if (isFbx) {
+            alert("FBX dosyaları tarayıcıda doğrudan açılamaz. Lütfen Sıkıştır & Dönüştür seçeneğini kullanın.");
+            return;
+        }
         setShowUploadOptions(false);
         showLoading("MODEL AÇILIYOR...");
         loadModelToScene(URL.createObjectURL(pendingFile));
@@ -353,30 +353,42 @@ export default function Upload() {
     }
 
     setShowUploadOptions(false);
-    showLoading("SUNUCUDA İŞLENİYOR (Bu işlem model boyutuna göre uzun sürebilir)...");
+    showLoading("TARAYICIDA DÖNÜŞTÜRÜLÜYOR (Lütfen bekleyin)...");
     
     try {
-        const formData = new FormData();
-        formData.append('model', pendingFile);
-        formData.append('action', 'compress');
-        
-        const backendUrl = import.meta.env.VITE_CONVERTER_URL || 'http://localhost:3001';
-        
-        const res = await fetch(`${backendUrl}/api/upload`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if(!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || "Sunucu hatası");
+        if (isFbx) {
+            const fbxLoader = new FBXLoader();
+            const url = URL.createObjectURL(pendingFile);
+            fbxLoader.load(url, (group) => {
+                setLoadingText("SIKIŞTIRILIYOR (GLB)...");
+                const exporter = new GLTFExporter();
+                exporter.parse(group, (buffer) => {
+                    const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
+                    const glbUrl = URL.createObjectURL(glbBlob);
+                    setLoadingText("SAHNEYE EKLENİYOR...");
+                    loadModelToScene(glbUrl);
+                }, (err) => {
+                    console.error("GLTFExport Hatası:", err);
+                    alert("Sıkıştırma sırasında hata oluştu.");
+                    hideLoading();
+                }, { binary: true });
+            }, (xhr) => {
+                if (xhr.lengthComputable) {
+                    const percentComplete = xhr.loaded / xhr.total * 100;
+                    setLoadingText(`FBX OKUNUYOR (%${Math.round(percentComplete)})...`);
+                }
+            }, (err) => {
+                console.error("FBXLoad Hatası:", err);
+                alert("FBX dosyası okunamadı. Dosya bozuk veya desteklenmiyor olabilir.");
+                hideLoading();
+            });
+        } else {
+            // Zaten GLB ise direkt aç
+            loadModelToScene(URL.createObjectURL(pendingFile));
         }
-        
-        const data = await res.json();
-        setLoadingText("İNDİRİLİYOR VE AÇILIYOR...");
-        loadModelToScene(data.glbUrl);
     } catch(err) {
-        alert("İşlem başarısız: " + err.message + "\nNot: Backend sunucusunun (localhost:3001) çalıştığından emin olun.");
+        console.error(err);
+        alert("İşlem başarısız: " + err.message);
         hideLoading();
     }
   };
@@ -627,7 +639,7 @@ export default function Upload() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <button className="editor-btn primary" onClick={() => processServerUpload('compress')}>
-                        🚀 Sunucuda Dönüştür & Sıkıştır (Önerilen)
+                        🚀 Tarayıcıda Dönüştür & Sıkıştır (Önerilen)
                     </button>
                     <button className="editor-btn" onClick={() => processServerUpload('original')}>
                         📄 Olduğu Gibi Aç (Sadece GLB)
