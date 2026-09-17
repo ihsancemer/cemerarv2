@@ -562,6 +562,28 @@ export default function Upload() {
   const scaleCM = () => { if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.01); };
   const scaleMM = () => { if(engine.current.currentModel) engine.current.currentModel.scale.multiplyScalar(0.001); };
 
+  const autoFitAndCenter = () => {
+      const model = engine.current.currentModel;
+      if (!model) return;
+      
+      model.updateMatrixWorld(true);
+      let box = new THREE.Box3().setFromObject(model);
+      let size = new THREE.Vector3();
+      box.getSize(size);
+      
+      const maxDim = Math.max(size.x, size.y, size.z);
+      
+      // Otomatik ölçek tahmini (Oyun grupları genelde 2-15 metre arasıdır)
+      if (maxDim > 500) {
+          model.scale.multiplyScalar(0.001); // MM'den Metreye
+      } else if (maxDim > 15) {
+          model.scale.multiplyScalar(0.01); // CM'den Metreye
+      }
+      
+      // Ölçekten sonra merkeze ve zemine tekrar hizala
+      centerAndSnapToFloor();
+  };
+
   // Variations
   const handleAddVar = () => {
     if(!engine.current.currentModel) return;
@@ -759,6 +781,11 @@ export default function Upload() {
 
                 <div className="editor-panel">
                     <span className="editor-label">Ölçek ve Yönlendirme</span>
+                    
+                    <button className="editor-btn primary" style={{ marginBottom: '10px' }} onClick={autoFitAndCenter}>
+                        🪄 Otomatik Boyutlandır & Gride Oturt
+                    </button>
+
                     <div style={{ display: 'flex', gap: '5px', marginBottom: '8px' }}>
                         <button className="editor-btn" onClick={scaleCM}>CM ➔ M</button>
                         <button className="editor-btn" onClick={scaleMM}>MM ➔ M</button>
