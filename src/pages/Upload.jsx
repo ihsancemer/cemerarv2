@@ -12,7 +12,7 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
 import { WebIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, draco, prune } from '@gltf-transform/functions';
+import { dedup, draco, flatten, prune } from '@gltf-transform/functions';
 import draco3d from 'draco3dgltf';
 import './Upload.css';
 
@@ -824,6 +824,7 @@ export default function Upload() {
                 const document = await io.readBinary(new Uint8Array(buffer));
                 
                 await document.transform(
+                    flatten(),  // Tüm node transform'larını geometriye yak, AR boyutu platformlar arası eşit olsun
                     dedup(),
                     prune(),
                     draco()
@@ -856,6 +857,7 @@ export default function Upload() {
                 const ioForIos = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
                 const iosDoc = await ioForIos.readBinary(new Uint8Array(buffer)); // orijinal buffer, Draco yok
                 await iosDoc.transform(
+                    flatten(),  // iOS için de aynı boyutu garantile
                     dedup(),
                     prune()
                     // draco() YOK — Apple AR Draco desteklemiyor
