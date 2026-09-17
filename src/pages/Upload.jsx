@@ -749,7 +749,14 @@ export default function Upload() {
   };
 
   return (
-    <div className="editor-wrapper">
+    <div className="editor-container">
+        {isLoading && (
+            <div className="editor-overlay">
+                <div className="editor-spinner"></div>
+                <div style={{ marginTop: '15px', fontWeight: 600, letterSpacing: '0.5px' }}>{loadingText}</div>
+            </div>
+        )}
+
         {/* Save Modal */}
         <div className={`editor-modal-backdrop ${showSaveModal ? 'open' : ''}`}>
             <div className="editor-panel" style={{ maxWidth: '360px', width: '90%', padding: '25px' }}>
