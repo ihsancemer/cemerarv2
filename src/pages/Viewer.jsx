@@ -54,7 +54,6 @@ export default function Viewer() {
 
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
-    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d-ios.glb`);
     mv.setAttribute('ar', '');
     // Android'de yerleşik Google Scene Viewer (Apple Quick Look benzeri) uygulamasını önceliklendir
     mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
