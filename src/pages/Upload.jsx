@@ -738,8 +738,38 @@ export default function Upload() {
 
             setLoadingText("APPLE AR (USDZ) İÇİN OPTİMİZE EDİLİYOR...");
             try {
+                // Manuel çok agresif doku küçültme işlemi (USDZ boyutu için)
+                const resizeTex = (tex, maxDim) => {
+                    if(!tex || !tex.image) return tex;
+                    const img = tex.image;
+                    let w = img.width || img.naturalWidth || 1024;
+                    let h = img.height || img.naturalHeight || 1024;
+                    if(w <= maxDim && h <= maxDim) return tex;
+                    const aspect = w / h;
+                    if(w > h) { w = maxDim; h = Math.round(maxDim / aspect); }
+                    else { h = maxDim; w = Math.round(maxDim * aspect); }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const newTex = new THREE.CanvasTexture(canvas);
+                    newTex.colorSpace = tex.colorSpace;
+                    newTex.flipY = tex.flipY;
+                    return newTex;
+                };
+
+                const usdzClone = e.currentModel.clone();
+                usdzClone.traverse(child => {
+                    if(child.isMesh && child.material) {
+                        child.material = child.material.clone();
+                        if(child.material.map) child.material.map = resizeTex(child.material.map, 512);
+                        if(child.material.normalMap) child.material.normalMap = resizeTex(child.material.normalMap, 512);
+                        if(child.material.roughnessMap) child.material.roughnessMap = resizeTex(child.material.roughnessMap, 512);
+                    }
+                });
+
                 const usdzExporter = new USDZExporter();
-                const usdzBuffer = await usdzExporter.parse(e.currentModel, { quickLookCompatible: true, maxTextureSize: 1024 });
+                const usdzBuffer = await usdzExporter.parse(usdzClone, { quickLookCompatible: true });
                 const usdzBlob = new Blob([usdzBuffer], { type: 'model/vnd.usdz+zip' });
                 const { error: usdzErr } = await supabase.storage.from('models').upload(`${name}-3d.usdz`, usdzBlob, { upsert: true });
                 if (usdzErr) console.error('USDZ yükleme hatası:', usdzErr);
