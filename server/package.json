@@ -1,0 +1,20 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },,
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "cors": "^2.8.6",
+    "draco3d": "^1.5.7",
+    "express": "^5.2.1",
+    "fbx2gltf": "^0.9.7-p1",
+    "multer": "^2.4.0"
+  }
+}

@@ -27,6 +27,8 @@ export default function Upload() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
   
   const [saveName, setSaveName] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -296,17 +298,13 @@ export default function Upload() {
   const hideLoading = () => setIsLoading(false);
 
   // File Handlers
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    
-    showLoading("MODEL AÇILIYOR...");
+  const loadModelToScene = (url) => {
     const loader = new GLTFLoader();
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/');
     loader.setDRACOLoader(dracoLoader);
     
-    loader.load(URL.createObjectURL(file), (gltf) => {
+    loader.load(url, (gltf) => {
         const eng = engine.current;
         if(eng.currentModel) {
             eng.scene.remove(eng.currentModel);
@@ -322,12 +320,65 @@ export default function Upload() {
         if (eng.transformControl) eng.transformControl.attach(eng.currentModel);
         
         hideLoading();
-        e.target.value = ""; 
     }, undefined, (err) => {
         console.error(err);
         hideLoading();
         alert("Model yükleme hatası!");
     });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    setPendingFile(file);
+    setShowUploadOptions(true);
+    e.target.value = "";
+  };
+
+  const processServerUpload = async (action) => {
+    if(!pendingFile) return;
+    const isFbx = pendingFile.name.toLowerCase().endsWith('.fbx');
+    
+    if (isFbx && action === 'original') {
+        alert("FBX dosyaları tarayıcıda doğrudan açılamaz. Lütfen Sıkıştır & Dönüştür seçeneğini kullanın.");
+        return;
+    }
+    
+    if (action === 'original' && !isFbx) {
+        setShowUploadOptions(false);
+        showLoading("MODEL AÇILIYOR...");
+        loadModelToScene(URL.createObjectURL(pendingFile));
+        return;
+    }
+
+    setShowUploadOptions(false);
+    showLoading("SUNUCUDA İŞLENİYOR (Bu işlem model boyutuna göre uzun sürebilir)...");
+    
+    try {
+        const formData = new FormData();
+        formData.append('model', pendingFile);
+        formData.append('action', 'compress');
+        
+        const backendUrl = import.meta.env.VITE_CONVERTER_URL || 'http://localhost:3001';
+        
+        const res = await fetch(`${backendUrl}/api/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if(!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "Sunucu hatası");
+        }
+        
+        const data = await res.json();
+        setLoadingText("İNDİRİLİYOR VE AÇILIYOR...");
+        loadModelToScene(data.glbUrl);
+    } catch(err) {
+        alert("İşlem başarısız: " + err.message + "\nNot: Backend sunucusunun (localhost:3001) çalıştığından emin olun.");
+        hideLoading();
+    }
   };
 
   const handleTexChange = (e) => {
@@ -567,6 +618,27 @@ export default function Upload() {
 
   return (
     <div className="editor-wrapper">
+        <div className={`editor-modal-backdrop ${showUploadOptions ? 'open' : ''}`}>
+            <div className="editor-panel" style={{ maxWidth: '400px', width: '90%', padding: '25px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: '15px', fontSize: '16px' }}>NASIL AÇILSIN?</div>
+                <div style={{ fontSize: '13px', color: '#ccc', marginBottom: '20px' }}>
+                    Yüklenen Dosya: <strong style={{color:'#fff'}}>{pendingFile?.name}</strong>
+                    <br/><br/>FBX dosyalarını görüntülemek ve sistemde kullanabilmek için mutlaka "Dönüştür ve Sıkıştır" seçeneğini kullanmalısınız.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button className="editor-btn primary" onClick={() => processServerUpload('compress')}>
+                        🚀 Sunucuda Dönüştür & Sıkıştır (Önerilen)
+                    </button>
+                    <button className="editor-btn" onClick={() => processServerUpload('original')}>
+                        📄 Olduğu Gibi Aç (Sadece GLB)
+                    </button>
+                    <button className="editor-btn" onClick={() => setShowUploadOptions(false)} style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }}>
+                        İPTAL
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div className={`editor-modal-backdrop ${showSaveModal ? 'open' : ''}`}>
             <div className="editor-panel" style={{ maxWidth: '360px', width: '90%', padding: '25px' }}>
                 <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: '20px', fontSize: '16px' }}>KÜTÜPHANEYE KAYDET</div>
@@ -586,7 +658,7 @@ export default function Upload() {
                 <div style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '1px' }}>CEMER <span style={{ color: 'var(--accent)' }}>AR STUDIO</span></div>
             </Link>
             <div style={{ flex: 1 }}></div>
-            <input type="file" ref={fileInputRef} accept=".glb" style={{ display: 'none' }} onChange={handleFileChange} />
+            <input type="file" ref={fileInputRef} accept=".glb,.fbx" style={{ display: 'none' }} onChange={handleFileChange} />
             <button className="editor-btn" style={{ width: 'auto' }} onClick={() => fileInputRef.current?.click()}>📂 Model Aç</button>
             <button className="editor-btn primary" style={{ width: 'auto', marginLeft: '8px' }} onClick={openSaveModal}>☁️ Kütüphaneye Kaydet</button>
         </div>
