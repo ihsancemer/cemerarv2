@@ -10,7 +10,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
-import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
+import { USDZExporter } from '../utils/USDZExporterAsync.js';
 import { WebIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, draco, prune } from '@gltf-transform/functions';
