@@ -361,6 +361,52 @@ export default function Upload() {
             const url = URL.createObjectURL(pendingFile);
             fbxLoader.load(url, (group) => {
                 setLoadingText("SIKIŞTIRILIYOR (GLB)...");
+                
+                // HATA ÇÖZÜMÜ: Hatalı kaplamaları temizle ve GLTF uyumlu materyale çevir
+                group.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        
+                        materials.forEach((mat, index) => {
+                            // 1. Desteklenmeyen veya bozuk resimleri temizle (GLTFExporter çökmesini engeller)
+                            const maps = ['map', 'lightMap', 'aoMap', 'emissiveMap', 'bumpMap', 'normalMap', 'displacementMap', 'roughnessMap', 'metalnessMap', 'alphaMap'];
+                            maps.forEach(mapName => {
+                                if (mat[mapName]) {
+                                    const img = mat[mapName].image;
+                                    if (!img || (!img.width && !img.data)) {
+                                        mat[mapName] = null; // Bozuk resmi yoksay
+                                    }
+                                }
+                            });
+
+                            // 2. MeshPhongMaterial'i GLTF standartı olan MeshStandardMaterial'e çevir
+                            if (mat.isMeshPhongMaterial) {
+                                const newMat = new THREE.MeshStandardMaterial({
+                                    color: mat.color,
+                                    map: mat.map,
+                                    normalMap: mat.normalMap,
+                                    bumpMap: mat.bumpMap,
+                                    bumpScale: mat.bumpScale,
+                                    emissive: mat.emissive,
+                                    emissiveMap: mat.emissiveMap,
+                                    emissiveIntensity: mat.emissiveIntensity,
+                                    alphaMap: mat.alphaMap,
+                                    transparent: mat.transparent,
+                                    opacity: mat.opacity,
+                                    side: mat.side,
+                                    roughness: 0.5,
+                                    metalness: 0.1
+                                });
+                                if (Array.isArray(child.material)) {
+                                    child.material[index] = newMat;
+                                } else {
+                                    child.material = newMat;
+                                }
+                            }
+                        });
+                    }
+                });
+
                 const exporter = new GLTFExporter();
                 exporter.parse(group, (buffer) => {
                     const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
