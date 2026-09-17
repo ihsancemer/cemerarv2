@@ -37,7 +37,7 @@ export default function Viewer() {
     const baseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
     const bucketPath = `${baseUrl}/storage/v1/object/public/models/`;
     
-    setModelUrl(`${bucketPath}${cleanedId}-3d.glb?t=${Date.now()}`);
+    setModelUrl(`${bucketPath}${cleanedId}-3d.glb`);
     
     fetch(`${bucketPath}${cleanedId}-vars.json?t=${Date.now()}`)
       .then(res => res.ok ? res.json() : null)
@@ -52,10 +52,11 @@ export default function Viewer() {
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
     mv.setAttribute('ar', '');
-    mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
+    // ar-modes: quick-look = iOS, scene-viewer = Android, webxr = Chrome
+    mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
-    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d.usdz?t=${Date.now()}`);
+    // ios-src: model-viewer iOS için GLB'den otomatik USDZ üretir, ios-src gerekmez
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('touch-action', 'pan-y');
     mv.setAttribute('shadow-intensity', '1.5');
