@@ -54,7 +54,6 @@ export default function Viewer() {
 
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
-    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d.usdz`);
     mv.setAttribute('ar', '');
     // Android'de yerleşik Google Scene Viewer (Apple Quick Look benzeri) uygulamasını önceliklendir
     mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
@@ -73,7 +72,12 @@ export default function Viewer() {
     mv.setAttribute('loading', 'lazy');
     mv.setAttribute('poster', `${bucketPath}${modelId}-thumb.webp`);
     mv.setAttribute('reveal', 'auto');
-    // crossorigin kaldırıldı — Supabase CDN + iOS Quick Look ile CORS sorunu çıkarıyor
+    
+    // Yalnızca USDZ dosyası sunucuda varsa ios-src tanımla (Yükleme hatası varsa Apple çökmesin diye)
+    fetch(`${bucketPath}${modelId}-3d.usdz`, { method: 'HEAD' })
+      .then(res => {
+          if(res.ok) mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d.usdz`);
+      }).catch(() => {});
 
     const handleProgress = (ev) => setProgress(ev.detail.totalProgress * 100);
     const handleLoad = () => {
