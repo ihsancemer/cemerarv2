@@ -55,12 +55,12 @@ export default function Viewer() {
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
     mv.setAttribute('ar', '');
-    // ar-modes: quick-look = iOS, scene-viewer = Android, webxr = Chrome
-    mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+    // ar-modes: iOS için quick-look, Android için scene-viewer
+    mv.setAttribute('ar-modes', 'quick-look scene-viewer webxr');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
-    // iOS AR için Draco'suz GLB — Apple Quick Look Draco desteklemiyor
-    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d-ios.glb`);
+    // NOT: ios-src sadece .usdz dosyası kabul eder. GLB vermek anlık kapanmaya yol açar.
+    // model-viewer iOS için kendi içinde GLB -> USDZ dönüşümü yapıyor, ios-src gerekmez.
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('touch-action', 'pan-y');
     mv.setAttribute('shadow-intensity', '1.5');
@@ -73,7 +73,7 @@ export default function Viewer() {
     mv.setAttribute('loading', 'lazy');
     mv.setAttribute('poster', `${bucketPath}${modelId}-thumb.webp`);
     mv.setAttribute('reveal', 'auto');
-    mv.setAttribute('crossorigin', 'anonymous');
+    // crossorigin kaldırıldı — Supabase CDN + iOS Quick Look ile CORS sorunu çıkarıyor
 
     const handleProgress = (ev) => setProgress(ev.detail.totalProgress * 100);
     const handleLoad = () => {
