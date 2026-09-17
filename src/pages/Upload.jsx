@@ -4,16 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
-import { WebIO } from '@gltf-transform/core';
-import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, draco, flatten, prune, center } from '@gltf-transform/functions';
-import draco3d from 'draco3dgltf';
 import './Upload.css';
 
 export default function Upload() {
@@ -35,9 +26,8 @@ export default function Upload() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
-  const [useDraco, setUseDraco] = useState(true); // false = sıkıştırma atlandı
   
   const [saveName, setSaveName] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -458,113 +448,16 @@ export default function Upload() {
     const file = e.target.files[0];
     if(!file) return;
     
-    setPendingFile(file);
-    setShowUploadOptions(true);
-    e.target.value = "";
-  };
-
-  const processServerUpload = async (action) => {
-    if(!pendingFile) return;
-    const isFbx = pendingFile.name.toLowerCase().endsWith('.fbx');
-    
-    if (action === 'original') {
-        if (isFbx) {
-            alert("FBX dosyaları tarayıcıda doğrudan açılamaz. Lütfen Sıkıştır & Dönüştür seçeneğini kullanın.");
-            return;
-        }
-        setUseDraco(false); // Bu dosyayı kaydetirken Draco uygulanmasın
-        setShowUploadOptions(false);
-        showLoading("MODEL AÇILIYOR...");
-        loadModelToScene(URL.createObjectURL(pendingFile));
+    if(!file.name.toLowerCase().endsWith('.glb')) {
+        alert("Sadece .glb uzantılı modeller yüklenebilir.");
+        e.target.value = "";
         return;
     }
-    setUseDraco(true); // Normal akış: Draco aktif
-
-    setShowUploadOptions(false);
-    showLoading("TARAYICIDA DÖNÜŞTÜRÜLÜYOR (Lütfen bekleyin)...");
     
-    try {
-        if (isFbx) {
-            const fbxLoader = new FBXLoader();
-            const url = URL.createObjectURL(pendingFile);
-            fbxLoader.load(url, (group) => {
-                setLoadingText("SIKIŞTIRILIYOR (GLB)...");
-                
-                // HATA ÇÖZÜMÜ: Hatalı kaplamaları temizle ve GLTF uyumlu materyale çevir
-                group.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        const materials = Array.isArray(child.material) ? child.material : [child.material];
-                        
-                        materials.forEach((mat, index) => {
-                            // 1. Desteklenmeyen veya bozuk resimleri temizle (GLTFExporter çökmesini engeller)
-                            const maps = ['map', 'lightMap', 'aoMap', 'emissiveMap', 'bumpMap', 'normalMap', 'displacementMap', 'roughnessMap', 'metalnessMap', 'alphaMap'];
-                            maps.forEach(mapName => {
-                                if (mat[mapName]) {
-                                    const img = mat[mapName].image;
-                                    if (!img || (!img.width && !img.data)) {
-                                        mat[mapName] = null; // Bozuk resmi yoksay
-                                    }
-                                }
-                            });
-
-                            // 2. MeshPhongMaterial'i GLTF standartı olan MeshStandardMaterial'e çevir
-                            if (mat.isMeshPhongMaterial) {
-                                const newMat = new THREE.MeshStandardMaterial({
-                                    color: mat.color,
-                                    map: mat.map,
-                                    normalMap: mat.normalMap,
-                                    bumpMap: mat.bumpMap,
-                                    bumpScale: mat.bumpScale,
-                                    emissive: mat.emissive,
-                                    emissiveMap: mat.emissiveMap,
-                                    emissiveIntensity: mat.emissiveIntensity,
-                                    alphaMap: mat.alphaMap,
-                                    transparent: mat.transparent,
-                                    opacity: mat.opacity,
-                                    side: mat.side,
-                                    roughness: 0.5,
-                                    metalness: 0.1
-                                });
-                                if (Array.isArray(child.material)) {
-                                    child.material[index] = newMat;
-                                } else {
-                                    child.material = newMat;
-                                }
-                            }
-                        });
-                    }
-                });
-
-                const exporter = new GLTFExporter();
-                exporter.parse(group, (buffer) => {
-                    const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
-                    const glbUrl = URL.createObjectURL(glbBlob);
-                    setLoadingText("SAHNEYE EKLENİYOR...");
-                    loadModelToScene(glbUrl);
-                }, (err) => {
-                    console.error("GLTFExport Hatası:", err);
-                    alert("Sıkıştırma sırasında hata oluştu.");
-                    hideLoading();
-                }, { binary: true });
-            }, (xhr) => {
-                if (xhr.lengthComputable) {
-                    const percentComplete = xhr.loaded / xhr.total * 100;
-                    setLoadingText(`FBX OKUNUYOR (%${Math.round(percentComplete)})...`);
-                }
-            }, (err) => {
-                console.error("FBXLoad Hatası:", err);
-                alert("FBX dosyası okunamadı. Dosya bozuk veya desteklenmiyor olabilir.");
-                hideLoading();
-            });
-        } else {
-            // Zaten GLB ise direkt aç
-            loadModelToScene(URL.createObjectURL(pendingFile));
-        }
-    } catch(err) {
-        console.error(err);
-        alert("İşlem başarısız: " + err.message);
-        hideLoading();
-    }
+    setPendingFile(file);
+    showLoading("MODEL AÇILIYOR...");
+    loadModelToScene(URL.createObjectURL(file));
+    e.target.value = "";
   };
 
   const handleTexChange = (e) => {
@@ -813,87 +706,16 @@ export default function Upload() {
                  return;
             }
 
-            setLoadingText("DRACO MOTORU ÇALIŞIYOR (Bu işlem modelin boyutuna göre 10-30sn sürebilir)...");
-            let finalBuffer = buffer;
-            
-            if (useDraco) {
-            try {
-                await new Promise(r => setTimeout(r, 100));
-
-                const io = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
-                io.registerDependencies({
-                    'draco3d.decoder': await draco3d.createDecoderModule({
-                        locateFile: (file) => `/draco/${file}`
-                    }),
-                    'draco3d.encoder': await draco3d.createEncoderModule({
-                        locateFile: (file) => `/draco/${file}`
-                    }),
-                });
-
-                const document = await io.readBinary(new Uint8Array(buffer));
-                
-                await document.transform(
-                    flatten(),
-                    center({ pivot: 'below' }), // Garantili olarak merkeze ve zemine oturtur
-                    dedup(),
-                    prune(),
-                    draco()
-                );
-                
-                const compressedArray = await io.writeBinary(document);
-                finalBuffer = compressedArray.buffer;
-                
-                const origMB = (buffer.byteLength / 1024 / 1024).toFixed(2);
-                const newMB = (finalBuffer.byteLength / 1024 / 1024).toFixed(2);
-                const saved = (100 - (finalBuffer.byteLength / buffer.byteLength) * 100).toFixed(0);
-                
-                setLoadingText(`✅ DRACO BAŞARILI! Orijinal: ${origMB}MB -> Yeni: ${newMB}MB (%${saved} Küçüldü). BULUTA YÜKLENİYOR...`);
-                await new Promise(r => setTimeout(r, 3000));
-                
-            } catch(dracoErr) {
-                console.error("Draco sıkıştırma hatası:", dracoErr);
-                setLoadingText(`⚠️ Draco motoru hata verdi. Standart sıkıştırma ile devam ediliyor...`);
-                await new Promise(r => setTimeout(r, 2000));
-            }
-            } else {
-                // Draco atlandı — dosya zaten sıkıştırılmış
-                setLoadingText("⏭️ Sıkıştırma atlandı (mevcut format korunuyor). BULUTA YÜKLENİYOR...");
-                await new Promise(r => setTimeout(r, 1500));
-            }
-
-            const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
-
-            // --- iOS AR için Draco'suz GLB üret ---
-            setLoadingText("📱 Apple AR için iOS versiyon hazırlanıyor...");
-            await new Promise(r => setTimeout(r, 60));
-            let iosGlbBlob = null;
-            try {
-                const ioForIos = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
-                const iosDoc = await ioForIos.readBinary(new Uint8Array(buffer)); // orijinal buffer, Draco yok
-                await iosDoc.transform(
-                    flatten(),  // iOS için de aynı boyutu garantile
-                    dedup(),
-                    prune()
-                    // draco() YOK — Apple AR Draco desteklemiyor
-                );
-                const iosArray = await ioForIos.writeBinary(iosDoc);
-                iosGlbBlob = new Blob([iosArray.buffer], { type: 'model/gltf-binary' });
-            } catch (iosErr) {
-                console.error('iOS GLB üretimi hatası:', iosErr);
-            }
-            // ------------------------------------------
-
             setLoadingText("DOSYALAR BULUTA YÜKLENİYOR...");
             const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
             if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
             
+            const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
             const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
             if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
 
-            if (iosGlbBlob) {
-                const { error: iosErr } = await supabase.storage.from('models').upload(`${name}-3d-ios.glb`, iosGlbBlob, { upsert: true });
-                if (iosErr) console.error('iOS GLB upload hatası:', iosErr);
-            }
+            const { error: iosErr } = await supabase.storage.from('models').upload(`${name}-3d-ios.glb`, glbBlob, { upsert: true });
+            if (iosErr) console.error('iOS GLB upload hatası:', iosErr);
 
             if(variations.length > 0) {
                 const vBlob = new Blob([JSON.stringify(variations)], { type: "application/json" });
@@ -925,27 +747,7 @@ export default function Upload() {
 
   return (
     <div className="editor-wrapper">
-        <div className={`editor-modal-backdrop ${showUploadOptions ? 'open' : ''}`}>
-            <div className="editor-panel" style={{ maxWidth: '400px', width: '90%', padding: '25px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: '15px', fontSize: '16px' }}>NASIL AÇILSIN?</div>
-                <div style={{ fontSize: '13px', color: '#ccc', marginBottom: '20px' }}>
-                    Yüklenen Dosya: <strong style={{color:'#fff'}}>{pendingFile?.name}</strong>
-                    <br/><br/>FBX dosyalarını görüntülemek ve sistemde kullanabilmek için mutlaka "Dönüştür ve Sıkıştır" seçeneğini kullanmalısınız.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button className="editor-btn primary" onClick={() => { setUseDraco(true); processServerUpload('compress'); }}>
-                        🚀 Tarayıcıda Dönüştür &amp; Sıkıştır (Önerilen)
-                    </button>
-                    <button className="editor-btn" style={{ background: 'rgba(90,200,120,0.15)', borderColor: 'rgba(90,200,120,0.4)', color: '#7eff9a' }} onClick={() => { setUseDraco(false); processServerUpload('original'); }}>
-                        ✅ Sıkıştırma Olmadan Devam Et (Zaten GLB ise)
-                    </button>
-                    <button className="editor-btn" onClick={() => setShowUploadOptions(false)} style={{ marginTop: '10px', background: 'rgba(255,255,255,0.05)' }}>
-                        İPTAL
-                    </button>
-                </div>
-            </div>
-        </div>
-
+        {/* Save Modal */}
         <div className={`editor-modal-backdrop ${showSaveModal ? 'open' : ''}`}>
             <div className="editor-panel" style={{ maxWidth: '360px', width: '90%', padding: '25px' }}>
                 <div style={{ fontWeight: 800, color: 'var(--accent)', marginBottom: '20px', fontSize: '16px' }}>KÜTÜPHANEYE KAYDET</div>
@@ -965,8 +767,8 @@ export default function Upload() {
                 <div style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '1px' }}>CEMER <span style={{ color: 'var(--accent)' }}>AR STUDIO</span></div>
             </Link>
             <div style={{ flex: 1 }}></div>
-            <input type="file" ref={fileInputRef} accept=".glb,.fbx" style={{ display: 'none' }} onChange={handleFileChange} />
-            <button className="editor-btn" style={{ width: 'auto' }} onClick={() => fileInputRef.current?.click()}>📂 Model Aç</button>
+            <input type="file" ref={fileInputRef} accept=".glb" style={{ display: 'none' }} onChange={handleFileChange} />
+            <button className="editor-btn" style={{ width: 'auto' }} onClick={() => fileInputRef.current?.click()}>📂 GLB Model Aç</button>
             <button className="editor-btn primary" style={{ width: 'auto', marginLeft: '8px' }} onClick={openSaveModal}>☁️ Kütüphaneye Kaydet</button>
         </div>
 
