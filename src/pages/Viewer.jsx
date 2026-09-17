@@ -37,7 +37,7 @@ export default function Viewer() {
     const baseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
     const bucketPath = `${baseUrl}/storage/v1/object/public/models/`;
     
-    setModelUrl(`${bucketPath}${cleanedId}-3d.glb`);
+    setModelUrl(`${bucketPath}${cleanedId}-3d.glb?t=${Date.now()}`);
     
     fetch(`${bucketPath}${cleanedId}-vars.json?t=${Date.now()}`)
       .then(res => res.ok ? res.json() : null)

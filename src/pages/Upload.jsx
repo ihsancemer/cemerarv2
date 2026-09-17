@@ -337,7 +337,9 @@ export default function Upload() {
         const loader = new GLTFLoader();
         loader.setDRACOLoader(dracoLoader);
         
-        loader.load(glbRes.publicUrl, (gltf) => {
+        const glbUrlWithCache = glbRes.publicUrl + `?t=${Date.now()}`;
+        
+        loader.load(glbUrlWithCache, (gltf) => {
             const e = engine.current;
             e.currentModel = gltf.scene; 
             e.scene.add(e.currentModel);
@@ -858,7 +860,11 @@ export default function Upload() {
             }
 
             const { error: dbErr } = await supabase.from('models').upsert([{ 
-                user_id: user.id, name: name, serial_code: serial, exposure: e.renderer.toneMappingExposure 
+                user_id: user.id, 
+                name: name, 
+                serial_code: serial, 
+                exposure: e.renderer.toneMappingExposure,
+                created_at: new Date().toISOString()
             }], { onConflict: 'name' });
 
             if(dbErr) throw dbErr;
@@ -1044,7 +1050,14 @@ export default function Upload() {
                 <div ref={selectionDivRef} className="selectBox"></div>
                 <div className={`editor-loading-ov ${isLoading ? 'open' : ''}`}>
                     <div className="editor-spinner"></div>
-                    <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '18px', marginTop: '15px' }}>{loadingText}</div>
+                    <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '18px', marginTop: '15px', textAlign: 'center' }}>
+                        {loadingText}
+                    </div>
+                    {isLoading && (
+                        <div style={{ color: '#aaa', fontSize: '13px', marginTop: '12px', maxWidth: '350px', textAlign: 'center', lineHeight: '1.5' }}>
+                            <span style={{color: '#fff', fontWeight: 'bold'}}>Draco Motoru Aktif:</span> Bu işlem 3D objenizi sıkıştırıp optimize etmeye yarar. (Apple AR ve web uyumluluğu için gereklidir).
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
