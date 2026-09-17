@@ -10,6 +10,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
+import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 import { WebIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, draco, prune } from '@gltf-transform/functions';
@@ -842,18 +843,38 @@ export default function Upload() {
                 
             } catch(dracoErr) {
                 console.error("Draco sıkıştırma hatası:", dracoErr);
-                setLoadingText(`⚠️ Draco motoru hata verdi. Standart sıkıştırma ile BULUTA YÜKLENİYOR...`);
-                await new Promise(r => setTimeout(r, 3000));
+                setLoadingText(`⚠️ Draco motoru hata verdi. Standart sıkıştırma ile devam ediliyor...`);
+                await new Promise(r => setTimeout(r, 2000));
             }
 
             const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
+            
+            // --- APPLE AR (USDZ) OLUŞTURMA ---
+            setLoadingText("APPLE AR İÇİN USDZ OLUŞTURULUYOR (Bu işlem biraz sürebilir)...");
+            await new Promise(r => setTimeout(r, 100));
+            
+            let usdzBlob = null;
+            try {
+                const usdzExporter = new USDZExporter();
+                const usdzBuffer = await usdzExporter.parse(e.currentModel, { quickLookCompatible: true });
+                usdzBlob = new Blob([usdzBuffer], { type: 'model/vnd.usdz+zip' });
+            } catch(usdzErr) {
+                console.error("USDZ Export Hatası:", usdzErr);
+            }
+            // ----------------------------------
 
+            setLoadingText("DOSYALAR BULUTA YÜKLENİYOR...");
             const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
             if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
             
             const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
             if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
             
+            if (usdzBlob) {
+                const { error: uErr } = await supabase.storage.from('models').upload(`${name}-3d.usdz`, usdzBlob, { upsert: true });
+                if (uErr) console.error("USDZ Upload Hatası:", uErr);
+            }
+
             if(variations.length > 0) {
                 const vBlob = new Blob([JSON.stringify(variations)], { type: "application/json" });
                 await supabase.storage.from('models').upload(`${name}-vars.json`, vBlob, { upsert: true });

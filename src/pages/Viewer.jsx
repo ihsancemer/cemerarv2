@@ -55,6 +55,7 @@ export default function Viewer() {
     mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
+    mv.setAttribute('ios-src', `${bucketPath}${modelId}-3d.usdz?t=${Date.now()}`);
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('touch-action', 'pan-y');
     mv.setAttribute('shadow-intensity', '1.5');
