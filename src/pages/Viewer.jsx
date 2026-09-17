@@ -55,12 +55,11 @@ export default function Viewer() {
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
     mv.setAttribute('ar', '');
-    // ar-modes: iOS için quick-look, Android için scene-viewer
-    mv.setAttribute('ar-modes', 'quick-look scene-viewer webxr');
+    // Doru sıra: Android'de webxr önce (tarayıcı içi), sonra scene-viewer, iOS'da quick-look
+    mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
-    // NOT: ios-src sadece .usdz dosyası kabul eder. GLB vermek anlık kapanmaya yol açar.
-    // model-viewer iOS için kendi içinde GLB -> USDZ dönüşümü yapıyor, ios-src gerekmez.
+    mv.setAttribute('xr-environment', '');
     mv.setAttribute('camera-controls', '');
     mv.setAttribute('touch-action', 'pan-y');
     mv.setAttribute('shadow-intensity', '1.5');
