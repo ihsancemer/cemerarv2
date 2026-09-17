@@ -47,7 +47,10 @@ export default function Viewer() {
 
   useEffect(() => {
     const mv = mvRef.current;
-    if (!mv || !modelUrl) return;
+    if (!mv || !modelUrl || !modelId) return;
+
+    const baseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
+    const bucketPath = `${baseUrl}/storage/v1/object/public/models/`;
 
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
@@ -68,7 +71,7 @@ export default function Viewer() {
     mv.setAttribute('rotation-speed', '0.5');
     mv.setAttribute('interpolation-decay', '200');
     mv.setAttribute('loading', 'lazy');
-    mv.setAttribute('poster', `${modelUrl.replace('-3d.glb', '-thumb.webp')}`);
+    mv.setAttribute('poster', `${bucketPath}${modelId}-thumb.webp`);
     mv.setAttribute('reveal', 'auto');
     mv.setAttribute('crossorigin', 'anonymous');
 
