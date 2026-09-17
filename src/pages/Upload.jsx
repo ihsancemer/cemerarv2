@@ -26,7 +26,6 @@ export default function Upload() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   
   const [saveName, setSaveName] = useState('');
