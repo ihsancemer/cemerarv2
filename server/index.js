@@ -69,7 +69,8 @@ app.post('/api/upload', upload.single('model'), async (req, res) => {
     
     const outputFilename = `${baseName}-${Date.now()}.glb`;
     const outputPath = path.join(publicDir, outputFilename);
-    const publicUrl = `http://localhost:${PORT}/public/${outputFilename}`;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const publicUrl = `${protocol}://${req.get('host')}/public/${outputFilename}`;
 
     console.log(`Processing file: ${req.file.originalname}, Action: ${action}`);
 
@@ -77,9 +78,10 @@ app.post('/api/upload', upload.single('model'), async (req, res) => {
     if (action === 'original') {
       const destPath = path.join(publicDir, req.file.filename);
       fs.copyFileSync(filePath, destPath);
+      const originalUrl = `${protocol}://${req.get('host')}/public/${req.file.filename}`;
       return res.json({ 
         message: 'Orijinal dosya yüklendi.',
-        url: `http://localhost:${PORT}/public/${req.file.filename}`,
+        url: originalUrl,
         originalName: req.file.originalname
       });
     }
