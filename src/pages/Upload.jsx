@@ -10,6 +10,10 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
+import { WebIO } from '@gltf-transform/core';
+import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
+import { dedup, draco, prune } from '@gltf-transform/functions';
+import draco3d from 'draco3dgltf';
 import './Upload.css';
 
 export default function Upload() {
@@ -798,7 +802,40 @@ export default function Upload() {
                  return;
             }
 
-            const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
+            setLoadingText("DRACO MOTORU ÇALIŞIYOR (Bu işlem modelin boyutuna göre 10-30sn sürebilir)...");
+            let finalBuffer = buffer;
+            
+            try {
+                // UI'ın güncellenmesi için ufak bir bekleme (Donmayı önler)
+                await new Promise(r => setTimeout(r, 100));
+
+                const io = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
+                io.registerDependencies({
+                    'draco3d.decoder': await draco3d.createDecoderModule({
+                        locateFile: (file) => `/draco/${file}`
+                    }),
+                    'draco3d.encoder': await draco3d.createEncoderModule({
+                        locateFile: (file) => `/draco/${file}`
+                    }),
+                });
+
+                const document = await io.readBinary(new Uint8Array(buffer));
+                
+                await document.transform(
+                    dedup(),
+                    prune(),
+                    draco()
+                );
+                
+                const compressedArray = await io.writeBinary(document);
+                finalBuffer = compressedArray.buffer;
+                console.log(`Draco Sıkıştırması Başarılı! Orijinal: ${(buffer.byteLength/1024/1024).toFixed(2)}MB, Yeni: ${(finalBuffer.byteLength/1024/1024).toFixed(2)}MB`);
+            } catch(dracoErr) {
+                console.error("Draco sıkıştırma hatası:", dracoErr);
+                alert("Draco motoru hata verdi, standart sıkıştırma ile devam ediliyor.");
+            }
+
+            const glbBlob = new Blob([finalBuffer], { type: 'model/gltf-binary' });
             setLoadingText("BULUTA YÜKLENİYOR...");
 
             const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, thumbBlob, { upsert: true });
