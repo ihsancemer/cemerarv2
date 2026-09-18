@@ -7,8 +7,9 @@ import { fileURLToPath } from 'url';
 import convertFbx2Gltf from 'fbx2gltf';
 import { NodeIO } from '@gltf-transform/core';
 import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
-import { resample, prune, dedup, draco, textureCompress } from '@gltf-transform/functions';
+import { resample, prune, dedup, join, simplify, draco, textureCompress } from '@gltf-transform/functions';
 import draco3d from 'draco3d';
+import { MeshoptSimplifier } from 'meshoptimizer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,7 +63,7 @@ app.post('/api/upload', upload.single('model'), async (req, res) => {
       return res.status(400).json({ error: 'Dosya yüklenemedi.' });
     }
 
-    const { action } = req.body; // 'original' or 'compress'
+    const { action, compressionLevel } = req.body; // action: 'original' or 'compress', compressionLevel: 'basit', 'orta', 'yuksek'
     const filePath = req.file.path;
     const originalExt = path.extname(req.file.originalname).toLowerCase();
     const baseName = path.basename(req.file.originalname, originalExt);
@@ -100,11 +101,24 @@ app.post('/api/upload', upload.single('model'), async (req, res) => {
     console.log('Compressing and optimizing GLB...');
     const document = await io.read(glbPathToCompress);
     
+    // Determine simplify ratio based on compressionLevel (default: orta)
+    let simplifyRatio = 0.5;
+    if (compressionLevel === 'basit') {
+      simplifyRatio = 0.8;
+    } else if (compressionLevel === 'yuksek') {
+      simplifyRatio = 0.2;
+    }
+
     await document.transform(
       prune(),      // Remove unused nodes/materials
       dedup(),      // Deduplicate accessors/textures
       resample(),   // Resample animations
-      draco()       // Draco compression for geometry
+      join(),       // Merge meshes sharing the same material
+      simplify({    // Reduce polygons using meshoptimizer
+        simplifier: MeshoptSimplifier,
+        ratio: simplifyRatio,
+        error: 0.01
+      })
       // Note: textureCompress requires 'sharp' module to be installed. We'll skip texture compression for now 
       // unless 'sharp' is added, to keep things simple.
     );

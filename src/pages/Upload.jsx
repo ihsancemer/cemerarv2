@@ -23,7 +23,7 @@ export default function Upload() {
 
   const engine = useRef({
     scene: null, camera: null, renderer: null, orbit: null, 
-    currentModel: null, grid: null, selectionBoxes: [], sunLight: null,
+    currentModel: null, previewModel: null, grid: null, selectionBoxes: [], sunLight: null,
     selectedMeshes: [], transformControl: null, reqId: null,
     selectionBox: null, history: []
   });
@@ -38,6 +38,9 @@ export default function Upload() {
   const [saveName, setSaveName] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [saveSerial, setSaveSerial] = useState('');
+  
+  const [compressionLevel, setCompressionLevel] = useState('orta');
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   
   const [varName, setVarName] = useState('');
   const [variations, setVariations] = useState([]);
@@ -667,9 +670,100 @@ export default function Upload() {
       setVariations(nv);
   };
 
+  // Preview Flow
+  const handlePreview = async () => {
+      if(!engine.current.currentModel) return alert("Önizlenecek model yok!");
+      if(compressionLevel === 'yok') return alert("Lütfen önce bir sıkıştırma seviyesi (Basit, Orta, Yüksek) seçin.");
+      
+      setShowSaveModal(false);
+      showLoading("ÖNİZLEME HAZIRLANIYOR...");
+
+      const e = engine.current;
+      e.grid.visible = false; 
+      e.selectionBoxes.forEach(box => { box.visible = false; });
+      if (e.transformControl) e.transformControl.visible = false;
+
+      const exporter = new GLTFExporter();
+      const exportOptions = { binary: true, animations: e.currentModel.animations || [], onlyVisible: true };
+      
+      exporter.parse(e.currentModel, async (buffer) => {
+          e.grid.visible = true;
+          e.selectionBoxes.forEach(box => { box.visible = true; });
+          if (e.transformControl) e.transformControl.visible = true;
+
+          const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
+          
+          try {
+              const formData = new FormData();
+              formData.append('model', glbBlob, `preview.glb`);
+              formData.append('action', 'compress');
+              formData.append('compressionLevel', compressionLevel);
+              
+              const res = await fetch('http://localhost:3001/api/upload', {
+                  method: 'POST',
+                  body: formData
+              });
+              
+              if (!res.ok) throw new Error("Sunucu hatası: " + res.statusText);
+              const result = await res.json();
+              
+              if (result.glbUrl) {
+                  const dlRes = await fetch(result.glbUrl);
+                  if (dlRes.ok) {
+                      const compressedBlob = await dlRes.blob();
+                      const blobUrl = URL.createObjectURL(compressedBlob);
+                      
+                      const loader = new GLTFLoader();
+                      const dracoLoader = new DRACOLoader();
+                      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
+                      loader.setDRACOLoader(dracoLoader);
+                      loader.setMeshoptDecoder(MeshoptDecoder);
+                      
+                      loader.load(blobUrl, (gltf) => {
+                          if (e.previewModel) {
+                              e.scene.remove(e.previewModel);
+                          }
+                          e.previewModel = gltf.scene;
+                          e.currentModel.visible = false; // Hide original
+                          e.scene.add(e.previewModel);
+                          
+                          e.previewModel.updateMatrixWorld(true);
+                          setIsPreviewMode(true);
+                          hideLoading();
+                      });
+                  } else {
+                      throw new Error("Sıkıştırılmış dosya indirilemedi.");
+                  }
+              } else {
+                  throw new Error(result.error || "Bilinmeyen sunucu hatası");
+              }
+          } catch (err) {
+              console.error("Önizleme hatası:", err);
+              alert("Önizleme sırasında hata oluştu: " + err.message);
+              hideLoading();
+          }
+      }, (err) => {
+          alert("Export hatası: " + err.message);
+          hideLoading();
+      }, exportOptions);
+  };
+
+  const cancelPreview = () => {
+      const e = engine.current;
+      if (e.previewModel) {
+          e.scene.remove(e.previewModel);
+          e.previewModel = null;
+      }
+      if (e.currentModel) {
+          e.currentModel.visible = true;
+      }
+      setIsPreviewMode(false);
+  };
+
   // Save Flow
   const openSaveModal = () => {
       if(!engine.current.currentModel) return alert("Kaydedilecek model yok!");
+      if(isPreviewMode) cancelPreview();
       setShowSaveModal(true);
   };
 
@@ -733,7 +827,42 @@ export default function Upload() {
             if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
             
             const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
-            const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, glbBlob, { upsert: true });
+            
+            let finalGlbBlob = glbBlob;
+            if (compressionLevel !== 'yok') {
+                setLoadingText(`POLİGONLAR SIKIŞTIRILIYOR (${compressionLevel.toUpperCase()})...`);
+                try {
+                    const formData = new FormData();
+                    formData.append('model', glbBlob, `${name}-raw.glb`);
+                    formData.append('action', 'compress');
+                    formData.append('compressionLevel', compressionLevel);
+                    
+                    const res = await fetch('http://localhost:3001/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!res.ok) throw new Error("Sunucu hatası: " + res.statusText);
+                    const result = await res.json();
+                    
+                    if (result.glbUrl) {
+                        const dlRes = await fetch(result.glbUrl);
+                        if (dlRes.ok) {
+                            finalGlbBlob = await dlRes.blob();
+                        } else {
+                            throw new Error("Sıkıştırılmış dosya indirilemedi.");
+                        }
+                    } else {
+                        throw new Error(result.error || "Bilinmeyen sunucu hatası");
+                    }
+                } catch (e) {
+                    console.error("Sıkıştırma hatası:", e);
+                    alert("Sıkıştırma sırasında hata oluştu. Orijinal dosya kaydedilecek. Hata: " + e.message);
+                }
+            }
+
+            setLoadingText("MODEL BULUTA YÜKLENİYOR...");
+            const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, finalGlbBlob, { upsert: true });
             if (gErr) throw new Error("Model dosyası yüklenemedi (Dosya boyutu çok büyük olabilir): " + gErr.message);
 
             setLoadingText("APPLE AR (USDZ) İÇİN OPTİMİZE EDİLİYOR...");
@@ -822,8 +951,18 @@ export default function Upload() {
                 <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Örn: Istanbul Serisi Vapur" disabled={isEditMode} />
                 <label className="editor-label">Seri Kod / Grup (Sekme Oluşturur)</label>
                 <input type="text" value={saveSerial} onChange={e => setSaveSerial(e.target.value)} placeholder="Örn: IST-200 veya Istanbul" />
+                
+                <label className="editor-label" style={{marginTop:'15px'}}>Poligon Sıkıştırma (Node.js)</label>
+                <select value={compressionLevel} onChange={e => setCompressionLevel(e.target.value)} style={{width:'100%', padding:'10px', background:'var(--panel)', color:'white', border:'1px solid var(--border)', borderRadius:'6px'}}>
+                    <option value="yok">Sıkıştırma Yok (Orijinal)</option>
+                    <option value="basit">Basit (Hafif, %80 Kalır)</option>
+                    <option value="orta">Orta (Dengeli, %50 Kalır)</option>
+                    <option value="yuksek">Yüksek (Agresif, %20 Kalır)</option>
+                </select>
+
                 <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                     <button className="editor-btn primary" onClick={confirmSave}>KAYDET</button>
+                    <button className="editor-btn" style={{ borderColor: '#19b0c7', color: '#19b0c7' }} onClick={handlePreview} disabled={compressionLevel === 'yok'} title={compressionLevel === 'yok' ? "Önizleme için önce bir sıkıştırma seviyesi seçin" : "Sıkıştırılmış halini 3D ekranda gör"}>ÖNİZLE</button>
                     <button className="editor-btn" onClick={() => setShowSaveModal(false)}>İPTAL</button>
                 </div>
             </div>
@@ -958,6 +1097,15 @@ export default function Upload() {
             </div>
             
             <div className="editor-viewport" ref={containerRef} tabIndex="0">
+                {isPreviewMode && (
+                    <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.85)', padding: '15px 30px', borderRadius: '12px', border: '1px solid #19b0c7', color: 'white', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 10, backdropFilter: 'blur(10px)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                        <div>
+                            <div style={{ fontWeight: 800, color: '#facc15', fontSize: '14px', letterSpacing: '1px' }}>ÖNİZLEME MODU AKTİF</div>
+                            <div style={{ fontSize: '13px', color: '#ccc', marginTop: '4px' }}>Modelin <b style={{color: 'white'}}>{compressionLevel.toUpperCase()}</b> sıkıştırma seviyesindeki (optimize edilmiş) halini görüyorsunuz.</div>
+                        </div>
+                        <button className="editor-btn" style={{ borderColor: '#ef4444', color: '#ef4444', background: 'rgba(239,68,68,0.1)' }} onClick={cancelPreview}>Önizlemeden Çık</button>
+                    </div>
+                )}
                 <div ref={selectionDivRef} className="selectBox"></div>
                 <div className={`editor-loading-ov ${isLoading ? 'open' : ''}`}>
                     <div className="editor-spinner"></div>

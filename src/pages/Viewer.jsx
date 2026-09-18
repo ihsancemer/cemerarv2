@@ -141,7 +141,10 @@ export default function Viewer() {
           {!errorMsg ? (
             <>
               <div className="status-spinner"></div>
-              <div style={{ fontWeight: 600, color: '#444', marginBottom: 10 }}>Ürün Hazırlanıyor...</div>
+              <div style={{ fontWeight: 600, color: '#444', marginBottom: 10, textAlign: 'center' }}>
+                <div>Ürün Hazırlanıyor...</div>
+                <div style={{ fontSize: '0.85em', opacity: 0.7, marginTop: '4px' }}>Product is being prepared...</div>
+              </div>
               <div className="load-bar">
                 <div className="load-fill" style={{ width: `${progress}%` }}></div>
               </div>
@@ -179,7 +182,10 @@ export default function Viewer() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
             <path d="M7 11V7H11V5H7C5.9 5 5 5.9 5 7V11H7ZM17 7V11H19V7C19 5.9 18.1 5 17 5H13V7H17ZM17 17H13V19H17C18.1 19 19 18.1 19 17V13H17V17ZM7 17V13H5V17C5 18.1 5.9 19 7 19H11V17H7ZM12 8C9.79 8 8 9.79 8 12C8 14.21 9.79 16 12 16C14.21 16 16 14.21 16 12C16 9.79 14.21 8 12 8Z"/>
           </svg>
-          GERÇEK DÜNYADA GÖR
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', opacity: 0.9, lineHeight: '1.2', letterSpacing: '0.5px' }}>VIEW IN AR</span>
+            <span style={{ lineHeight: '1.2' }}>GERÇEK DÜNYADA GÖR</span>
+          </div>
         </button>
       )}
 
