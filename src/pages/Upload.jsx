@@ -819,14 +819,16 @@ export default function Upload() {
 
           // DB Insert
           setLoadingText("VERİTABANI GÜNCELLENİYOR...");
-          const { error: dbErr } = await supabase.from('ar_models').upsert({
-              name: directName,
-              model_url: d1.publicUrl,
-              ios_url: d2.publicUrl,
-              thumbnail_url: d3.publicUrl,
+          const { data: { user }, error: authErr } = await supabase.auth.getUser();
+          if (authErr || !user) throw new Error("Oturum hatası! Tekrar giriş yapın.");
+
+          const { error: dbErr } = await supabase.from('models').upsert([{
+              user_id: user.id,
+              name: name,
               serial_code: serial,
-              updated_at: new Date()
-          }, { onConflict: 'name' });
+              exposure: 1.5,
+              created_at: new Date().toISOString()
+          }], { onConflict: 'name' });
 
           if (dbErr) throw new Error("Veritabanı hatası: " + dbErr.message);
 
