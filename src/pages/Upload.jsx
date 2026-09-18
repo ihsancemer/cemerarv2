@@ -46,6 +46,14 @@ export default function Upload() {
   const [compressionLevel, setCompressionLevel] = useState('orta');
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   
+  // Direct Upload State
+  const [showDirectUploadModal, setShowDirectUploadModal] = useState(false);
+  const [directName, setDirectName] = useState('');
+  const [directSerial, setDirectSerial] = useState('');
+  const [directGlbFile, setDirectGlbFile] = useState(null);
+  const [directUsdzFile, setDirectUsdzFile] = useState(null);
+  const [directThumbFile, setDirectThumbFile] = useState(null);
+
   const [varName, setVarName] = useState('');
   const [variations, setVariations] = useState([]);
   
@@ -778,6 +786,68 @@ export default function Upload() {
       setShowSaveModal(true);
   };
 
+  // Direct Upload Flow
+  const handleDirectUpload = async () => {
+      if(!directName || !directGlbFile || !directUsdzFile || !directThumbFile) {
+          return alert("Lütfen ürün ismini ve tüm dosyaları (GLB, USDZ, Görsel) eksiksiz seçin.");
+      }
+      
+      showLoading("DOSYALAR YÜKLENİYOR...");
+      const name = directName.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+      const serial = directSerial.trim() || 'Genel';
+      
+      try {
+          // Upload thumbnail
+          setLoadingText("GÖRSEL YÜKLENİYOR...");
+          const { error: tErr } = await supabase.storage.from('models').upload(`${name}-thumb.webp`, directThumbFile, { upsert: true });
+          if (tErr) throw new Error("Görsel yüklenemedi: " + tErr.message);
+
+          // Upload glb
+          setLoadingText("GLB DOSYASI YÜKLENİYOR...");
+          const { error: gErr } = await supabase.storage.from('models').upload(`${name}-3d.glb`, directGlbFile, { upsert: true });
+          if (gErr) throw new Error("GLB dosyası yüklenemedi: " + gErr.message);
+
+          // Upload usdz
+          setLoadingText("USDZ DOSYASI YÜKLENİYOR...");
+          const { error: uErr } = await supabase.storage.from('models').upload(`${name}-ar.usdz`, directUsdzFile, { upsert: true });
+          if (uErr) throw new Error("USDZ dosyası yüklenemedi: " + uErr.message);
+
+          // Get Public URLs
+          const { data: d1 } = supabase.storage.from('models').getPublicUrl(`${name}-3d.glb`);
+          const { data: d2 } = supabase.storage.from('models').getPublicUrl(`${name}-ar.usdz`);
+          const { data: d3 } = supabase.storage.from('models').getPublicUrl(`${name}-thumb.webp`);
+
+          // DB Insert
+          setLoadingText("VERİTABANI GÜNCELLENİYOR...");
+          const { error: dbErr } = await supabase.from('ar_models').upsert({
+              name: directName,
+              model_url: d1.publicUrl,
+              ios_url: d2.publicUrl,
+              thumbnail_url: d3.publicUrl,
+              serial_code: serial,
+              updated_at: new Date()
+          }, { onConflict: 'name' });
+
+          if (dbErr) throw new Error("Veritabanı hatası: " + dbErr.message);
+
+          hideLoading();
+          alert("Hızlı Yükleme Başarılı! Modeliniz AR kütüphanesine eklendi.");
+          setShowDirectUploadModal(false);
+          
+          // Clear states
+          setDirectName('');
+          setDirectSerial('');
+          setDirectGlbFile(null);
+          setDirectUsdzFile(null);
+          setDirectThumbFile(null);
+          
+      } catch (err) {
+          console.error(err);
+          alert(err.message);
+          hideLoading();
+      }
+  };
+
   const confirmSave = async () => {
     const rawName = saveName;
     const serial = saveSerial.trim();
@@ -957,6 +1027,33 @@ export default function Upload() {
             </div>
         </div>
 
+        {/* Direct Upload Modal */}
+        <div className={`editor-modal-backdrop ${showDirectUploadModal ? 'open' : ''}`}>
+            <div className="editor-panel" style={{ maxWidth: '400px', width: '90%', padding: '25px' }}>
+                <div style={{ fontWeight: 800, color: '#eab308', marginBottom: '20px', fontSize: '16px' }}>⚡ HIZLI YÜKLEME (GLB + USDZ)</div>
+                
+                <label className="editor-label">Ürün İsmi</label>
+                <input type="text" value={directName} onChange={e => setDirectName(e.target.value)} placeholder="Örn: Istanbul Serisi Vapur" />
+                
+                <label className="editor-label">Seri Kod / Grup</label>
+                <input type="text" value={directSerial} onChange={e => setDirectSerial(e.target.value)} placeholder="Örn: IST-200 veya Istanbul" />
+                
+                <label className="editor-label" style={{marginTop:'15px'}}>1. GLB Dosyası Seç (.glb)</label>
+                <input type="file" accept=".glb" onChange={e => setDirectGlbFile(e.target.files[0])} style={{ color: 'white', marginBottom: '10px' }} />
+                
+                <label className="editor-label">2. USDZ Dosyası Seç (.usdz)</label>
+                <input type="file" accept=".usdz" onChange={e => setDirectUsdzFile(e.target.files[0])} style={{ color: 'white', marginBottom: '10px' }} />
+                
+                <label className="editor-label">3. Kapak Görseli Seç (.png, .jpg, .webp)</label>
+                <input type="file" accept="image/*" onChange={e => setDirectThumbFile(e.target.files[0])} style={{ color: 'white' }} />
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+                    <button className="editor-btn" style={{ borderColor: '#eab308', color: '#eab308', flex: 1 }} onClick={handleDirectUpload}>YÜKLE</button>
+                    <button className="editor-btn" onClick={() => setShowDirectUploadModal(false)}>İPTAL</button>
+                </div>
+            </div>
+        </div>
+
         <div className="editor-topbar">
             <Link to="/dashboard" style={{textDecoration:'none', color:'inherit'}}>
                 <div style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '1px' }}>CEMER <span style={{ color: 'var(--accent)' }}>AR STUDIO</span></div>
@@ -964,6 +1061,7 @@ export default function Upload() {
             <div style={{ flex: 1 }}></div>
             <input type="file" ref={fileInputRef} accept=".glb" style={{ display: 'none' }} onChange={handleFileChange} />
             <button className="editor-btn" style={{ width: 'auto' }} onClick={() => fileInputRef.current?.click()}>📂 GLB Model Aç</button>
+            <button className="editor-btn" style={{ width: 'auto', marginLeft: '8px', borderColor: '#eab308', color: '#eab308' }} onClick={() => setShowDirectUploadModal(true)}>⚡ Hızlı Yükle (GLB+USDZ)</button>
             <button className="editor-btn primary" style={{ width: 'auto', marginLeft: '8px' }} onClick={openSaveModal}>☁️ Kütüphaneye Kaydet</button>
         </div>
 
