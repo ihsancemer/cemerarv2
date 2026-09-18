@@ -12,6 +12,10 @@ import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { SelectionBox } from 'three/examples/jsm/interactive/SelectionBox.js';
+import { WebIO } from '@gltf-transform/core';
+import { KHRONOS_EXTENSIONS } from '@gltf-transform/extensions';
+import { prune, dedup, resample, join, simplify } from '@gltf-transform/functions';
+import { MeshoptSimplifier } from 'meshoptimizer';
 import './Upload.css';
 
 export default function Upload() {
@@ -670,6 +674,32 @@ export default function Upload() {
       setVariations(nv);
   };
 
+  const compressGLB = async (buffer, level) => {
+      let simplifyRatio = 0.5;
+      if (level === 'basit') simplifyRatio = 0.8;
+      else if (level === 'yuksek') simplifyRatio = 0.2;
+
+      await MeshoptSimplifier.ready;
+
+      const io = new WebIO().registerExtensions(KHRONOS_EXTENSIONS);
+      const document = await io.readBinary(new Uint8Array(buffer));
+
+      await document.transform(
+          prune(),
+          dedup(),
+          resample(),
+          join(),
+          simplify({
+              simplifier: MeshoptSimplifier,
+              ratio: simplifyRatio,
+              error: 0.01
+          })
+      );
+
+      const outBuffer = await io.writeBinary(document);
+      return new Blob([outBuffer], { type: 'model/gltf-binary' });
+  };
+
   // Preview Flow
   const handlePreview = async () => {
       if(!engine.current.currentModel) return alert("Önizlenecek model yok!");
@@ -691,52 +721,33 @@ export default function Upload() {
           e.selectionBoxes.forEach(box => { box.visible = true; });
           if (e.transformControl) e.transformControl.visible = true;
 
-          const glbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
-          
           try {
-              const formData = new FormData();
-              formData.append('model', glbBlob, `preview.glb`);
-              formData.append('action', 'compress');
-              formData.append('compressionLevel', compressionLevel);
+              let finalGlbBlob = new Blob([buffer], { type: 'model/gltf-binary' });
               
-              const res = await fetch('http://localhost:3001/api/upload', {
-                  method: 'POST',
-                  body: formData
-              });
-              
-              if (!res.ok) throw new Error("Sunucu hatası: " + res.statusText);
-              const result = await res.json();
-              
-              if (result.glbUrl) {
-                  const dlRes = await fetch(result.glbUrl);
-                  if (dlRes.ok) {
-                      const compressedBlob = await dlRes.blob();
-                      const blobUrl = URL.createObjectURL(compressedBlob);
-                      
-                      const loader = new GLTFLoader();
-                      const dracoLoader = new DRACOLoader();
-                      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
-                      loader.setDRACOLoader(dracoLoader);
-                      loader.setMeshoptDecoder(MeshoptDecoder);
-                      
-                      loader.load(blobUrl, (gltf) => {
-                          if (e.previewModel) {
-                              e.scene.remove(e.previewModel);
-                          }
-                          e.previewModel = gltf.scene;
-                          e.currentModel.visible = false; // Hide original
-                          e.scene.add(e.previewModel);
-                          
-                          e.previewModel.updateMatrixWorld(true);
-                          setIsPreviewMode(true);
-                          hideLoading();
-                      });
-                  } else {
-                      throw new Error("Sıkıştırılmış dosya indirilemedi.");
-                  }
-              } else {
-                  throw new Error(result.error || "Bilinmeyen sunucu hatası");
+              if (compressionLevel !== 'yok') {
+                  finalGlbBlob = await compressGLB(buffer, compressionLevel);
               }
+              
+              const blobUrl = URL.createObjectURL(finalGlbBlob);
+              
+              const loader = new GLTFLoader();
+              const dracoLoader = new DRACOLoader();
+              dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); 
+              loader.setDRACOLoader(dracoLoader);
+              loader.setMeshoptDecoder(MeshoptDecoder);
+              
+              loader.load(blobUrl, (gltf) => {
+                  if (e.previewModel) {
+                      e.scene.remove(e.previewModel);
+                  }
+                  e.previewModel = gltf.scene;
+                  e.currentModel.visible = false; // Hide original
+                  e.scene.add(e.previewModel);
+                  
+                  e.previewModel.updateMatrixWorld(true);
+                  setIsPreviewMode(true);
+                  hideLoading();
+              });
           } catch (err) {
               console.error("Önizleme hatası:", err);
               alert("Önizleme sırasında hata oluştu: " + err.message);
@@ -832,29 +843,7 @@ export default function Upload() {
             if (compressionLevel !== 'yok') {
                 setLoadingText(`POLİGONLAR SIKIŞTIRILIYOR (${compressionLevel.toUpperCase()})...`);
                 try {
-                    const formData = new FormData();
-                    formData.append('model', glbBlob, `${name}-raw.glb`);
-                    formData.append('action', 'compress');
-                    formData.append('compressionLevel', compressionLevel);
-                    
-                    const res = await fetch('http://localhost:3001/api/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!res.ok) throw new Error("Sunucu hatası: " + res.statusText);
-                    const result = await res.json();
-                    
-                    if (result.glbUrl) {
-                        const dlRes = await fetch(result.glbUrl);
-                        if (dlRes.ok) {
-                            finalGlbBlob = await dlRes.blob();
-                        } else {
-                            throw new Error("Sıkıştırılmış dosya indirilemedi.");
-                        }
-                    } else {
-                        throw new Error(result.error || "Bilinmeyen sunucu hatası");
-                    }
+                    finalGlbBlob = await compressGLB(buffer, compressionLevel);
                 } catch (e) {
                     console.error("Sıkıştırma hatası:", e);
                     alert("Sıkıştırma sırasında hata oluştu. Orijinal dosya kaydedilecek. Hata: " + e.message);

@@ -10,11 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@react-three/xr": "^6.6.30",
     "@supabase/supabase-js": "^2.39.0",
     "fflate": "^0.8.3",
+    "meshoptimizer": "^1.2.0",
     "qrcode.react": "^3.1.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
