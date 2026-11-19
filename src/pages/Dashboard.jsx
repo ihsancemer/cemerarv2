@@ -76,7 +76,7 @@ export default function Dashboard() {
     if (!window.confirm(`"${name}" ürününü kütüphaneden silmek istediğinize emin misiniz?`)) return;
     try {
       // Storage dosyalarını temizle
-      await supabase.storage.from('models').remove([`${name}-3d.glb`, `${name}-thumb.webp`, `${name}-vars.json`]);
+      await supabase.storage.from('models').remove([`${name}-3d.glb`, `${name}-3d.usdz`, `${name}-ar.usdz`, `${name}-thumb.webp`, `${name}-vars.json`]);
       // Veritabanı kaydını sil
       const { error } = await supabase.from('models').delete().eq('id', id);
       if (error) throw error;

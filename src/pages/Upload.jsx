@@ -809,12 +809,12 @@ export default function Upload() {
 
           // Upload usdz
           setLoadingText("USDZ DOSYASI YÜKLENİYOR...");
-          const { error: uErr } = await supabase.storage.from('models').upload(`${name}-ar.usdz`, directUsdzFile, { upsert: true });
+          const { error: uErr } = await supabase.storage.from('models').upload(`${name}-3d.usdz`, directUsdzFile, { upsert: true });
           if (uErr) throw new Error("USDZ dosyası yüklenemedi: " + uErr.message);
 
           // Get Public URLs
           const { data: d1 } = supabase.storage.from('models').getPublicUrl(`${name}-3d.glb`);
-          const { data: d2 } = supabase.storage.from('models').getPublicUrl(`${name}-ar.usdz`);
+          const { data: d2 } = supabase.storage.from('models').getPublicUrl(`${name}-3d.usdz`);
           const { data: d3 } = supabase.storage.from('models').getPublicUrl(`${name}-thumb.webp`);
 
           // DB Insert
