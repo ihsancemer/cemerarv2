@@ -21,6 +21,7 @@ export default function Viewer() {
   const [activeVar, setActiveVar] = useState(null);
   const [arAvailable, setArAvailable] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
+  const [arFailed, setArFailed] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -58,8 +59,10 @@ export default function Viewer() {
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
     mv.setAttribute('ar', '');
-    // Android'de yerleşik Google Scene Viewer (Apple Quick Look benzeri) uygulamasını önceliklendir
-    mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
+    // Android'de önce Chrome içinde WebXR dene: Scene Viewer ayrı uygulama açtığı için
+    // Xiaomi gibi arka planda uygulama başlatmayı engelleyen cihazlarda sayfaya geri dönüyordu.
+    // WebXR yoksa Scene Viewer'a, iOS'ta Quick Look'a düşer.
+    mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
     mv.setAttribute('ar-scale', 'fixed');
     mv.setAttribute('ar-placement', 'floor');
     mv.setAttribute('xr-environment', '');
@@ -94,6 +97,7 @@ export default function Viewer() {
     };
     const handleArStatus = (ev) => {
       console.log('AR Status:', ev.detail.status);
+      if (ev.detail.status === 'failed') setArFailed(true);
     };
 
     mv.addEventListener('progress', handleProgress);
@@ -209,6 +213,21 @@ export default function Viewer() {
       }}>
         Cemer IT tarafından geliştirildi
       </div>
+
+      {/* AR açılamadığında yönlendirme */}
+      {arFailed && (
+        <div className="viewer-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setArFailed(false); }}>
+          <div className="viewer-modal">
+            <h3>AR açılamadı</h3>
+            <p style={{ textAlign: 'left', lineHeight: 1.6 }}>
+              • Sayfayı <b>Chrome</b> tarayıcısında açın (WhatsApp/Instagram içinden değil).<br/>
+              • Play Store'dan <b>Google Play Services for AR</b> uygulamasını yükleyin veya güncelleyin.<br/>
+              • Xiaomi/Redmi/Poco: Ayarlar → Uygulamalar → Chrome → Diğer izinler → <b>"Arka planda çalışırken açılır pencereleri göster"</b> iznini açın.
+            </p>
+            <button className="viewer-modal-close" onClick={() => setArFailed(false)}>Kapat</button>
+          </div>
+        </div>
+      )}
 
       {/* QR Modal for Desktop */}
       {showQrModal && (
