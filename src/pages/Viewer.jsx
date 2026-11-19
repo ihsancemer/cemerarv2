@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import './Viewer.css';
+import { SUPABASE_URL } from '../supabase';
 
-// Model dosyalarının bulunduğu klasör. .env içinde VITE_MODELS_BASE_URL verilirse oradan okunur
-// (örn. https://siteniz.com/models), verilmezse eskisi gibi Supabase bucket'ı kullanılır.
-const SUPABASE_URL = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
-const MODELS_BASE = (import.meta.env.VITE_MODELS_BASE_URL || `${SUPABASE_URL}/storage/v1/object/public/models`).replace(/\/+$/, '') + '/';
+// Model dosyaları yeni Supabase projesinin 'models' bucket'ında.
+const MODELS_BASE = `${SUPABASE_URL}/storage/v1/object/public/models/`;
 
 export default function Viewer() {
   const location = useLocation();
