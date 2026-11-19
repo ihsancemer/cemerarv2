@@ -3,6 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import './Viewer.css';
 
+// Model dosyalarının bulunduğu klasör. .env içinde VITE_MODELS_BASE_URL verilirse oradan okunur
+// (örn. https://siteniz.com/models), verilmezse eskisi gibi Supabase bucket'ı kullanılır.
+const SUPABASE_URL = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
+const MODELS_BASE = (import.meta.env.VITE_MODELS_BASE_URL || `${SUPABASE_URL}/storage/v1/object/public/models`).replace(/\/+$/, '') + '/';
+
 export default function Viewer() {
   const location = useLocation();
   const mvRef = useRef(null);
@@ -33,10 +38,9 @@ export default function Viewer() {
     }
     
     setModelId(cleanedId);
-    
-    const baseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
-    const bucketPath = `${baseUrl}/storage/v1/object/public/models/`;
-    
+
+    const bucketPath = MODELS_BASE;
+
     setModelUrl(`${bucketPath}${cleanedId}-3d.glb`);
     
     fetch(`${bucketPath}${cleanedId}-vars.json?t=${Date.now()}`)
@@ -49,8 +53,7 @@ export default function Viewer() {
     const mv = mvRef.current;
     if (!mv || !modelUrl || !modelId) return;
 
-    const baseUrl = import.meta.env.VITE_PUBLIC_SUPABASE_URL || 'https://oeiqrtnvlqzzxivpqogf.supabase.co';
-    const bucketPath = `${baseUrl}/storage/v1/object/public/models/`;
+    const bucketPath = MODELS_BASE;
 
     // model-viewer özelliklerini doğrudan DOM'a yaz (React web component uyumsuzluk sorunu için)
     mv.setAttribute('src', modelUrl);
